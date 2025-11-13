@@ -56,7 +56,7 @@ export async function POST(request: NextRequest) {
         // If prompt is empty but an image was provided, set the special auto-prompt
         // The prompt instructs the downstream system to describe the character in the image
         if (!prompt && image_url) {
-            prompt = `hãy mô tả nhân vật trong bức ảnh (cử chỉ, tư thế,...), hãy chỉ trả về đoạn mô tả, không ghi chú gì thêm`;
+            prompt = `Hãy mô tả nhân vật trong bức ảnh (cử chỉ, tư thế,...), hãy chỉ trả về đoạn mô tả, không ghi chú gì thêm.`;
             console.log(
                 "No prompt provided; using auto-prompt for image-only request."
             );
