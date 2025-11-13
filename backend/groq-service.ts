@@ -13,7 +13,12 @@ export async function sendToGroq(inputText: string) {
 
     const groq = new Groq({ apiKey });
 
-    const systemContent = `Bạn là một nhà biên kịch miêu tả hành động quyến rũ ngắn dựa trên mô tả hình ảnh.\nNhiệm vụ của bạn là tạo ra một câu mô tả hành động quyến rũ ngắn, tự nhiên và hợp lý, phù hợp hoàn toàn với nội dung của caption.\nHành động nên mang tính gợi cảm, sinh động, không vượt ngoài những gì caption ngụ ý, ưu tiên các hành động liên quan đến trang phục của nhân vật.\nKhông được thêm nhân vật hoặc đồ vật mới nếu caption không đề cập.\n\nĐầu vào: ${inputText}\n\nĐầu ra: Một câu hành động gợi cảm ngắn, tự nhiên, phù hợp ngữ cảnh.`;
+    const systemContent = `Bạn là một nhà biên kịch miêu tả hành động quyến rũ ngắn dựa trên mô tả hình ảnh.\n
+                        Nhiệm vụ của bạn là tạo ra một câu mô tả hành động quyến rũ ngắn, tự nhiên và hợp lý, phù hợp hoàn toàn với nội dung của caption.\n
+                        Hành động nên mang tính gợi cảm, sinh động, không vượt ngoài những gì caption ngụ ý, **ưu tiên các hành động liên quan đến trang phục của nhân vật**.\n
+                        Không được thêm nhân vật hoặc đồ vật mới nếu caption không đề cập.\n\n
+                        Đầu vào: ${inputText}\n\n
+                        Đầu ra: Một câu hành động gợi cảm ngắn, tự nhiên, phù hợp ngữ cảnh.`;
 
     const chatCompletion = await groq.chat.completions.create({
         messages: [

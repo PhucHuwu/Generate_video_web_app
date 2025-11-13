@@ -101,6 +101,18 @@ export function ChatContainer() {
                     timestamp: new Date(),
                 };
                 setMessages((prev) => [...prev, botMessage]);
+
+                // If Groq also returned an output, show it as a separate bot message (like a follow-up)
+                if (data?.groqOutput) {
+                    const groqMessage: Message = {
+                        id: (Date.now() + 2).toString(),
+                        text: data.groqOutput,
+                        sender: "bot",
+                        timestamp: new Date(),
+                    };
+                    setMessages((prev) => [...prev, groqMessage]);
+                }
+
                 setIsLoading(false);
                 return;
             }

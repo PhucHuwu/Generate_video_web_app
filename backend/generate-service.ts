@@ -12,7 +12,12 @@ export interface GenerateResult {
     state: string;
     resultUrls?: string[];
     raw?: any;
+    geminiDescription?: string;
+    groqOutput?: string;
 }
+
+import { describeImageWithGemini } from "./gemini-service";
+import { sendToGroq } from "./groq-service";
 
 const API_BASE = "https://api.kie.ai/api/v1/jobs";
 const API_KEY = process.env.KIE_API_KEY || "";
@@ -111,6 +116,34 @@ export async function generateMedia(
 
     const { pollIntervalMs = 2000, maxAttempts = 30 } = opts;
 
+    // If no prompt provided but an image URL is present, ask Gemini to describe the image,
+    // then send that description to Groq and log the outputs. Use Gemini description as
+    // the prompt for downstream generation if prompt was empty.
+    let geminiDescription: string | undefined;
+    let groqOutput: string | undefined;
+    if ((typeof input.prompt !== "string" || input.prompt.trim() === "") && input.image_url) {
+        try {
+            geminiDescription = await describeImageWithGemini(input.image_url);
+            console.log("Gemini description:", geminiDescription);
+        } catch (e) {
+            console.error("Gemini describe failed:", e);
+            throw e;
+        }
+
+        try {
+            groqOutput = await sendToGroq(geminiDescription || "");
+            console.log("Groq output:", groqOutput);
+        } catch (e) {
+            console.error("Groq processing failed:", e);
+            // don't throw here; we still want to attempt generation using the Gemini description
+        }
+
+        // Ensure the prompt used for KIE is the Gemini description when user didn't provide one
+        if (!input.prompt || input.prompt.trim() === "") {
+            input.prompt = geminiDescription || "";
+        }
+    }
+
     // choose model based on presence of image_url
     const model = input.image_url
         ? "kling/v2-5-turbo-image-to-video-pro"
@@ -131,7 +164,27 @@ export async function generateMedia(
         createPayload.image_url = input.image_url;
     }
 
-    const createResp = await createTask(model, createPayload, opts.callBackUrl);
+    let createResp: any;
+    try {
+        createResp = await createTask(model, createPayload, opts.callBackUrl);
+    } catch (err: any) {
+        const msg = String(err?.message || err);
+        // If KIE returns 503 (service unavailable / model overloaded), fallback to a lighter Gemini model
+        if (msg.includes("503") || /unavailab/i.test(msg)) {
+            console.warn(
+                "createTask failed with 503/unavailable — falling back to gemini-2.0-flash-lite",
+                { err: msg }
+            );
+            const fallbackModel = "gemini-2.0-flash-lite";
+            createResp = await createTask(
+                fallbackModel,
+                createPayload,
+                opts.callBackUrl
+            );
+        } else {
+            throw err;
+        }
+    }
     // Support a few possible response shapes and log response if missing
     const taskId =
         createResp?.data?.taskId ||
@@ -175,11 +228,13 @@ export async function generateMedia(
                 state: "success",
                 resultUrls,
                 raw: info,
+                geminiDescription,
+                groqOutput,
             };
         }
 
         if (state === "fail") {
-            return { taskId, state: "fail", raw: info };
+            return { taskId, state: "fail", raw: info, geminiDescription, groqOutput };
         }
 
         // waiting -> sleep and retry
@@ -188,7 +243,13 @@ export async function generateMedia(
 
     // timed out
     const lastInfo = await getRecordInfo(taskId).catch(() => null);
-    return { taskId, state: lastInfo?.data?.state ?? "waiting", raw: lastInfo };
+    return {
+        taskId,
+        state: lastInfo?.data?.state ?? "waiting",
+        raw: lastInfo,
+        geminiDescription,
+        groqOutput,
+    };
 }
 
 export default generateMedia;

@@ -42,13 +42,42 @@ export async function describeImageWithGemini(imageUrl: string) {
 
     const imagePart = await fetchImageAsPart(imageUrl);
 
-    const resp: any = await ai.models.generateContent({
-        model: "gemini-2.5-flash",
-        contents: [imagePart, prompt],
-        config: {
-            temperature: 0.1,
-        },
-    });
+    // Helper to call a specific Gemini model
+    async function callModel(modelName: string) {
+        return await ai.models.generateContent({
+            model: modelName,
+            contents: [imagePart, prompt],
+            config: { temperature: 0.1 },
+        });
+    }
+
+    // Try primary model, then fallback to a lighter model if overloaded (503 / UNAVAILABLE)
+    let resp: any;
+    try {
+        resp = await callModel("gemini-2.5-flash");
+    } catch (err: any) {
+        const msg = String(err?.message || err);
+        if (msg.includes("503") || /unavailab|overload/i.test(msg)) {
+            console.warn(
+                "Gemini model overloaded; retrying with gemini-2.0-flash-lite",
+                msg
+            );
+            try {
+                resp = await callModel("gemini-2.0-flash-lite");
+            } catch (err2: any) {
+                const combined = new Error(
+                    `Gemini describe failed (primary and fallback): ${msg}; ${String(
+                        err2?.message || err2
+                    )}`
+                );
+                (combined as any).primary = err;
+                (combined as any).fallback = err2;
+                throw combined;
+            }
+        } else {
+            throw err;
+        }
+    }
 
     // Try a few common response shapes
     let text = "";
