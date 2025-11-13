@@ -30,6 +30,8 @@ interface Message {
     };
     sender: "user" | "bot";
     timestamp: Date;
+    // taskId for retry/manual polling
+    taskId?: string;
 }
 
 export function ChatContainer() {
@@ -211,33 +213,8 @@ export function ChatContainer() {
             const thinkingGroq = data?.groqOutput || undefined;
 
             // If the server already returned resultUrls, show immediately
-            if (
-                data?.state === "success" &&
-                Array.isArray(data.resultUrls) &&
-                data.resultUrls.length > 0
-            ) {
-                const videoUrl = data.resultUrls[0];
-                const botMessage: Message = {
-                    id: (Date.now() + 1).toString(),
-                    text: "Video đã tạo xong",
-                    media: { src: videoUrl, type: "video" },
-                    sender: "bot",
-                    timestamp: new Date(),
-                    thinking:
-                        thinkingDescription || thinkingGroq
-                            ? {
-                                  description: thinkingDescription,
-                                  groqOutput: thinkingGroq,
-                                  collapsed: true,
-                              }
-                            : undefined,
-                };
-                setMessages((prev) => [...prev, botMessage]);
-            } else if (
-                Array.isArray(data?.resultUrls) &&
-                data.resultUrls.length > 0
-            ) {
-                // Some backends may return resultUrls without state
+            // Prioritize checking resultUrls first, regardless of state value
+            if (Array.isArray(data?.resultUrls) && data.resultUrls.length > 0) {
                 const videoUrl = data.resultUrls[0];
                 const botMessage: Message = {
                     id: (Date.now() + 1).toString(),
@@ -285,7 +262,7 @@ export function ChatContainer() {
 
                 // Start polling in background
                 (async () => {
-                    const maxChecks = 30; // up to ~60s with 2s interval
+                    const maxChecks = 60; // up to ~120s with 2s interval
                     const intervalMs = 2000;
                     for (let i = 0; i < maxChecks; i++) {
                         try {
@@ -347,44 +324,8 @@ export function ChatContainer() {
 
                             const resultUrls = extractResultUrls(statusData);
 
-                            // If provider reports a failure, surface the fail message to the user and stop polling
-                            if (statusData?.state === "fail") {
-                                const failMsg =
-                                    statusData?.raw?.data?.failMsg ||
-                                    statusData?.failMsg ||
-                                    statusData?.raw?.failMsg ||
-                                    "Quá trình tạo thất bại.";
-
-                                const failMessage: Message = {
-                                    id: (Date.now() + 2).toString(),
-                                    text: `Lỗi: ${failMsg}`,
-                                    sender: "bot",
-                                    timestamp: new Date(),
-                                };
-
-                                // Clear any fake-stream timer for this processing message
-                                const t = streamTimersRef.current.get(tempId);
-                                if (t) {
-                                    clearInterval(t);
-                                    streamTimersRef.current.delete(tempId);
-                                }
-
-                                // Replace processing message with failure message (append if not found)
-                                setMessages((prev) => {
-                                    const found = prev.some(
-                                        (m) => m.id === tempId
-                                    );
-                                    if (found)
-                                        return prev.map((m) =>
-                                            m.id === tempId ? failMessage : m
-                                        );
-                                    return [...prev, failMessage];
-                                });
-                                return;
-                            }
-
+                            // If we have resultUrls, consider it a success regardless of state
                             if (
-                                statusData?.state === "success" &&
                                 Array.isArray(resultUrls) &&
                                 resultUrls.length > 0
                             ) {
@@ -435,19 +376,184 @@ export function ChatContainer() {
                                 });
                                 return;
                             }
+
+                            // If provider reports a failure, surface the fail message to the user and stop polling
+                            if (statusData?.state === "fail") {
+                                const failMsg =
+                                    statusData?.raw?.data?.failMsg ||
+                                    statusData?.failMsg ||
+                                    statusData?.raw?.failMsg ||
+                                    "Quá trình tạo thất bại.";
+
+                                const failMessage: Message = {
+                                    id: (Date.now() + 2).toString(),
+                                    text: `Lỗi: ${failMsg}`,
+                                    sender: "bot",
+                                    timestamp: new Date(),
+                                };
+
+                                // Clear any fake-stream timer for this processing message
+                                const t = streamTimersRef.current.get(tempId);
+                                if (t) {
+                                    clearInterval(t);
+                                    streamTimersRef.current.delete(tempId);
+                                }
+
+                                // Replace processing message with failure message (append if not found)
+                                setMessages((prev) => {
+                                    const found = prev.some(
+                                        (m) => m.id === tempId
+                                    );
+                                    if (found)
+                                        return prev.map((m) =>
+                                            m.id === tempId ? failMessage : m
+                                        );
+                                    return [...prev, failMessage];
+                                });
+                                return;
+                            }
                         } catch (err) {
                             // ignore and retry
                         }
                         await new Promise((r) => setTimeout(r, intervalMs));
                     }
 
-                    // If we reach here, timed out — update message to a generic waiting notice
+                    // If we reach here, timed out — update message with retry option and continue background polling
                     setMessages((prev) =>
                         prev.map((m) =>
                             m.id === tempId
                                 ? {
                                       ...m,
-                                      text: "Quá trình tạo video vẫn đang được xử lý và có thể mất thêm thời gian. Vui lòng kiểm tra lại sau.",
+                                      text: "Quá trình tạo video đang mất nhiều thời gian hơn dự kiến. Đang tiếp tục kiểm tra...",
+                                      // Store taskId in a custom field for manual retry
+                                      taskId: data.taskId,
+                                  }
+                                : m
+                        )
+                    );
+
+                    // Continue background polling with longer intervals (every 5 seconds)
+                    const extendedMaxChecks = 36; // 36 × 5s = 3 phút thêm
+                    const extendedIntervalMs = 5000;
+                    for (let i = 0; i < extendedMaxChecks; i++) {
+                        try {
+                            const statusRes = await fetch(
+                                `/api/generate/status?taskId=${encodeURIComponent(
+                                    data.taskId
+                                )}`
+                            );
+                            if (!statusRes.ok) {
+                                await new Promise((r) =>
+                                    setTimeout(r, extendedIntervalMs)
+                                );
+                                continue;
+                            }
+                            const statusData = await statusRes.json();
+                            function extractResultUrls(
+                                obj: any
+                            ): string[] | undefined {
+                                if (!obj) return undefined;
+                                if (
+                                    Array.isArray(obj.resultUrls) &&
+                                    obj.resultUrls.length
+                                )
+                                    return obj.resultUrls;
+                                try {
+                                    const rj = obj?.raw?.data?.resultJson;
+                                    if (rj) {
+                                        const parsed =
+                                            typeof rj === "string"
+                                                ? JSON.parse(rj)
+                                                : rj;
+                                        if (
+                                            Array.isArray(parsed?.resultUrls) &&
+                                            parsed.resultUrls.length
+                                        )
+                                            return parsed.resultUrls;
+                                    }
+                                } catch (e) {}
+                                if (
+                                    Array.isArray(obj?.raw?.resultUrls) &&
+                                    obj.raw.resultUrls.length
+                                )
+                                    return obj.raw.resultUrls;
+                                if (
+                                    Array.isArray(obj?.data?.resultUrls) &&
+                                    obj.data.resultUrls.length
+                                )
+                                    return obj.data.resultUrls;
+                                return undefined;
+                            }
+
+                            const resultUrls = extractResultUrls(statusData);
+
+                            if (
+                                Array.isArray(resultUrls) &&
+                                resultUrls.length > 0
+                            ) {
+                                const videoUrl = resultUrls[0];
+                                const finishedMessage: Message = {
+                                    id: (Date.now() + 2).toString(),
+                                    text: "Video đã tạo xong",
+                                    media: { src: videoUrl, type: "video" },
+                                    sender: "bot",
+                                    timestamp: new Date(),
+                                };
+
+                                setMessages((prev) => {
+                                    const found = prev.some(
+                                        (m) => m.id === tempId
+                                    );
+                                    if (found)
+                                        return prev.map((m) =>
+                                            m.id === tempId
+                                                ? finishedMessage
+                                                : m
+                                        );
+                                    return [...prev, finishedMessage];
+                                });
+                                return;
+                            }
+
+                            if (statusData?.state === "fail") {
+                                const failMsg =
+                                    statusData?.raw?.data?.failMsg ||
+                                    statusData?.failMsg ||
+                                    statusData?.raw?.failMsg ||
+                                    "Quá trình tạo thất bại.";
+
+                                const failMessage: Message = {
+                                    id: (Date.now() + 2).toString(),
+                                    text: `Lỗi: ${failMsg}`,
+                                    sender: "bot",
+                                    timestamp: new Date(),
+                                };
+
+                                setMessages((prev) => {
+                                    const found = prev.some(
+                                        (m) => m.id === tempId
+                                    );
+                                    if (found)
+                                        return prev.map((m) =>
+                                            m.id === tempId ? failMessage : m
+                                        );
+                                    return [...prev, failMessage];
+                                });
+                                return;
+                            }
+                        } catch (err) {}
+                        await new Promise((r) =>
+                            setTimeout(r, extendedIntervalMs)
+                        );
+                    }
+
+                    // Final timeout after extended polling
+                    setMessages((prev) =>
+                        prev.map((m) =>
+                            m.id === tempId
+                                ? {
+                                      ...m,
+                                      text: "Quá trình tạo video mất quá lâu. Vui lòng thử lại sau hoặc liên hệ hỗ trợ.",
                                   }
                                 : m
                         )
