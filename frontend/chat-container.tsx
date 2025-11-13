@@ -36,6 +36,8 @@ interface Message {
 
 export function ChatContainer() {
     const [messages, setMessages] = useState<Message[]>([]);
+    const STORAGE_KEY = "chat_history_v1";
+    const [isProcessing, setIsProcessing] = useState(false);
     const [input, setInput] = useState("");
     const [uploadedImage, setUploadedImage] = useState<{
         src: string;
@@ -157,6 +159,40 @@ export function ChatContainer() {
         };
     }, []);
 
+    // Load chat history from localStorage on mount
+    useEffect(() => {
+        try {
+            const raw = localStorage.getItem(STORAGE_KEY);
+            if (raw) {
+                const parsed = JSON.parse(raw) as any[];
+                const restored: Message[] = parsed.map((m) => ({
+                    ...m,
+                    // restore timestamp to Date
+                    timestamp: m.timestamp ? new Date(m.timestamp) : new Date(),
+                }));
+                setMessages(restored);
+            }
+        } catch (e) {
+            console.warn("Failed to load chat history:", e);
+        }
+    }, []);
+
+    // Persist chat history to localStorage whenever messages change
+    useEffect(() => {
+        try {
+            const toSave = messages.map((m) => ({
+                ...m,
+                timestamp:
+                    m.timestamp instanceof Date
+                        ? m.timestamp.toISOString()
+                        : m.timestamp,
+            }));
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(toSave));
+        } catch (e) {
+            console.warn("Failed to save chat history:", e);
+        }
+    }, [messages]);
+
     const handleSendMessage = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!input.trim() && !uploadedImage) {
@@ -232,12 +268,14 @@ export function ChatContainer() {
                             : undefined,
                 };
                 setMessages((prev) => [...prev, botMessage]);
+                // ensure processing state is cleared if any
+                setIsProcessing(false);
             } else if (data?.taskId) {
                 // Show a temporary processing message, and start client-side polling for status
                 const tempId = (Date.now() + 1).toString();
                 const processingMessage: Message = {
                     id: tempId,
-                    text: "Đang tạo video — quá trình có thể mất khoảng 30–60 giây. Vui lòng chờ trong giây lát. Vui lòng không đóng trang này.",
+                    text: "Đang tạo video — quá trình có thể mất khoảng 30–60 giây. Vui lòng chờ trong giây lát. Vui lòng không đóng hay tải lại trang này.",
                     sender: "bot",
                     timestamp: new Date(),
                     thinking:
@@ -250,6 +288,8 @@ export function ChatContainer() {
                             : undefined,
                 };
                 setMessages((prev) => [...prev, processingMessage]);
+                // mark processing so user cannot send new messages until finished
+                setIsProcessing(true);
 
                 // Start fake streaming for thinking content if present
                 if (processingMessage.thinking) {
@@ -374,6 +414,7 @@ export function ChatContainer() {
                                         );
                                     return [...prev, finishedMessage];
                                 });
+                                setIsProcessing(false);
                                 return;
                             }
 
@@ -410,6 +451,7 @@ export function ChatContainer() {
                                         );
                                     return [...prev, failMessage];
                                 });
+                                setIsProcessing(false);
                                 return;
                             }
                         } catch (err) {
@@ -424,7 +466,7 @@ export function ChatContainer() {
                             m.id === tempId
                                 ? {
                                       ...m,
-                                      text: "Quá trình tạo video đang mất nhiều thời gian hơn dự kiến. Đang tiếp tục kiểm tra... Vui lòng không đóng trang này.",
+                                      text: "Quá trình tạo video đang mất nhiều thời gian hơn dự kiến. Đang tiếp tục kiểm tra... Vui lòng không đóng hay tải lại trang này.",
                                       // Store taskId in a custom field for manual retry
                                       taskId: data.taskId,
                                   }
@@ -512,6 +554,7 @@ export function ChatContainer() {
                                         );
                                     return [...prev, finishedMessage];
                                 });
+                                setIsProcessing(false);
                                 return;
                             }
 
@@ -539,6 +582,7 @@ export function ChatContainer() {
                                         );
                                     return [...prev, failMessage];
                                 });
+                                setIsProcessing(false);
                                 return;
                             }
                         } catch (err) {}
@@ -558,6 +602,7 @@ export function ChatContainer() {
                                 : m
                         )
                     );
+                    setIsProcessing(false);
                 })();
             } else if (data?.error) {
                 const botMessage: Message = {
@@ -632,6 +677,25 @@ export function ChatContainer() {
         // Reset file input
         if (fileInputRef.current) {
             fileInputRef.current.value = "";
+        }
+    };
+
+    // Clear chat history (state + localStorage) with confirmation
+    const clearHistory = () => {
+        const ok = window.confirm(
+            "Bạn có chắc muốn xóa toàn bộ lịch sử chat? Hành động này không thể hoàn tác."
+        );
+        if (!ok) return;
+
+        // Clear any running stream timers
+        streamTimersRef.current.forEach((t) => clearInterval(t));
+        streamTimersRef.current.clear();
+
+        setMessages([]);
+        try {
+            localStorage.removeItem(STORAGE_KEY);
+        } catch (e) {
+            // ignore
         }
     };
 
@@ -873,6 +937,20 @@ export function ChatContainer() {
             {/* Input Area */}
             <footer className="border-t border-border bg-card p-4">
                 <div className="max-w-4xl mx-auto">
+                    <div className="flex justify-end mb-2">
+                        <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={clearHistory}
+                            disabled={
+                                messages.length === 0 ||
+                                isLoading ||
+                                isProcessing
+                            }
+                        >
+                            Xóa lịch sử
+                        </Button>
+                    </div>
                     {/* Uploaded image preview shown above input (not as a sent message) */}
                     {uploadedImage && (
                         <div className="mb-2 flex items-center gap-3">
@@ -910,12 +988,12 @@ export function ChatContainer() {
                             placeholder="Nhập mô tả của bạn..."
                             value={input}
                             onChange={(e) => setInput(e.target.value)}
-                            disabled={isLoading}
+                            disabled={isLoading || isProcessing}
                             className="flex-1"
                         />
                         <Button
                             type="button"
-                            disabled={isLoading}
+                            disabled={isLoading || isProcessing}
                             size="icon"
                             className="bg-secondary hover:bg-secondary/90"
                             onClick={() => fileInputRef.current?.click()}
@@ -928,12 +1006,14 @@ export function ChatContainer() {
                             accept="image/*"
                             onChange={handleImageUpload}
                             className="hidden"
-                            disabled={isLoading}
+                            disabled={isLoading || isProcessing}
                         />
                         <Button
                             type="submit"
                             disabled={
-                                isLoading || (!input.trim() && !uploadedImage)
+                                isLoading ||
+                                isProcessing ||
+                                (!input.trim() && !uploadedImage)
                             }
                             size="icon"
                             className="bg-primary hover:bg-primary/90"
