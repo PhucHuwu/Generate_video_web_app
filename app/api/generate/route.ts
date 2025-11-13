@@ -56,7 +56,7 @@ export async function POST(request: NextRequest) {
         // If prompt is empty but an image was provided, set the special auto-prompt
         // The prompt instructs the downstream system to describe the character in the image
         if (!prompt && image_url) {
-            prompt = `Hãy mô tả nhân vật trong bức ảnh (cử chỉ, tư thế,...), hãy chỉ trả về đoạn mô tả, không ghi chú gì thêm.`;
+            prompt = `hãy mô tả nhân vật trong bức ảnh (cử chỉ, tư thế,...), hãy chỉ trả về đoạn mô tả, không ghi chú gì thêm`;
             console.log(
                 "No prompt provided; using auto-prompt for image-only request."
             );
@@ -93,37 +93,9 @@ export async function POST(request: NextRequest) {
                 }
             } catch (e: any) {
                 console.error("Gemini describe failed:", e);
-
-                // Parse error to provide user-friendly messages
-                let userMessage = "Không thể phân tích ảnh";
-                const errorStr = JSON.stringify(e);
-
-                if (
-                    errorStr.includes('"code":503') ||
-                    errorStr.includes("UNAVAILABLE") ||
-                    errorStr.includes("overloaded")
-                ) {
-                    userMessage =
-                        "Dịch vụ Gemini đang quá tải. Vui lòng thử lại sau vài giây.";
-                } else if (
-                    errorStr.includes('"code":429') ||
-                    errorStr.includes("RESOURCE_EXHAUSTED")
-                ) {
-                    userMessage =
-                        "Đã vượt quá giới hạn sử dụng API. Vui lòng thử lại sau.";
-                } else if (
-                    errorStr.includes('"code":401') ||
-                    errorStr.includes("UNAUTHENTICATED")
-                ) {
-                    userMessage =
-                        "API key không hợp lệ. Vui lòng kiểm tra cấu hình.";
-                } else if (e?.message) {
-                    userMessage = `Lỗi phân tích ảnh: ${e.message}`;
-                }
-
                 return NextResponse.json(
-                    { error: userMessage },
-                    { status: 503 }
+                    { error: `Gemini describe failed: ${e?.message || e}` },
+                    { status: 500 }
                 );
             }
         }

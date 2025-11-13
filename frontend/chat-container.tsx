@@ -86,16 +86,8 @@ export function ChatContainer() {
             });
 
             if (!response.ok) {
-                let errorMessage = "Không thể tạo video";
-                try {
-                    const errorData = await response.json();
-                    errorMessage = errorData?.error || errorMessage;
-                } catch {
-                    // If JSON parse fails, try text
-                    const text = await response.text().catch(() => "");
-                    if (text) errorMessage = text;
-                }
-                throw new Error(errorMessage);
+                const text = await response.text().catch(() => "");
+                throw new Error(`Generate failed: ${response.status} ${text}`);
             }
 
             const data = await response.json();
@@ -232,10 +224,7 @@ export function ChatContainer() {
             console.error("Error sending message:", error);
             const errorMessage: Message = {
                 id: (Date.now() + 1).toString(),
-                text:
-                    error instanceof Error
-                        ? error.message
-                        : "Lỗi: Không nhận được phản hồi từ dịch vụ.",
+                text: "Lỗi: Không nhận được phản hồi từ dịch vụ.",
                 sender: "bot",
                 timestamp: new Date(),
             };
