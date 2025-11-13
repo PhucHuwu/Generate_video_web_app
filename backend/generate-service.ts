@@ -102,6 +102,13 @@ export async function generateMedia(
         throw new Error("KIE_API_KEY not configured on server");
     }
 
+    // Defensive check: KIE only accepts https image URLs. Reject non-https inputs early.
+    if (input.image_url && !/^https:\/\//i.test(input.image_url)) {
+        throw new Error(
+            "KIE chỉ chấp nhận image_url bắt đầu bằng https://. Vui lòng cung cấp URL công khai (https) hoặc gửi imageBase64 để upload."
+        );
+    }
+
     const { pollIntervalMs = 2000, maxAttempts = 30 } = opts;
 
     // choose model based on presence of image_url

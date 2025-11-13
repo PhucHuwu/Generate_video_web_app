@@ -45,6 +45,16 @@ export async function POST(request: NextRequest) {
             }
         }
 
+        // Ensure image_url is an https public URL. KIE chỉ chấp nhận URL bắt đầu bằng https://
+        if (image_url && !/^https:\/\//i.test(image_url)) {
+            return NextResponse.json(
+                {
+                    error: "KIE chỉ chấp nhận URL HTTPS (bắt đầu bằng https://). Vui lòng gửi một image_url công khai bắt đầu bằng https:// hoặc gửi imageBase64 để upload.",
+                },
+                { status: 400 }
+            );
+        }
+
         // Now read prompt after handling image upload so we can support image-only requests
         let prompt = String(body?.prompt || "").trim();
 
