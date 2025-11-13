@@ -52,12 +52,8 @@ export async function POST(request: NextRequest) {
         }
 
         // Optional parameters with simple validation
-        const duration = body?.duration === "10" ? "10" : "5";
-        const aspect_ratio = ["16:9", "9:16", "1:1"].includes(
-            body?.aspect_ratio
-        )
-            ? body.aspect_ratio
-            : "16:9";
+        // Accept only "5" or "10". Default to "10" when missing/invalid to change system default.
+        const duration = body?.duration === "5" ? "5" : "10";
         const negative_prompt =
             typeof body?.negative_prompt === "string"
                 ? body.negative_prompt
@@ -74,7 +70,6 @@ export async function POST(request: NextRequest) {
                 prompt,
                 image_url,
                 duration,
-                aspect_ratio,
                 negative_prompt,
                 cfg_scale,
             },

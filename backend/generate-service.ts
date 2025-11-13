@@ -3,7 +3,6 @@ export interface GenerateInput {
     // when provided, use the image-to-video API
     image_url?: string;
     duration?: "5" | "10";
-    aspect_ratio?: "16:9" | "9:16" | "1:1";
     negative_prompt?: string;
     cfg_scale?: number;
 }
@@ -112,15 +111,14 @@ export async function generateMedia(
 
     const createPayload: any = {
         prompt: input.prompt,
-        duration: input.duration ?? "5",
+        // Use default 10 seconds when not provided. Keep explicit "5" if requested.
+        duration: input.duration ?? "10",
         negative_prompt:
             input.negative_prompt ?? "blur, distort, and low quality",
         cfg_scale: typeof input.cfg_scale === "number" ? input.cfg_scale : 0.5,
     };
 
-    if (!input.image_url && input.aspect_ratio) {
-        createPayload.aspect_ratio = input.aspect_ratio;
-    }
+    // aspect_ratio parameter removed: do not forward aspect_ratio to KIE
 
     if (input.image_url) {
         createPayload.image_url = input.image_url;
