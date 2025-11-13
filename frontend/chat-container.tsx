@@ -296,64 +296,119 @@ export function ChatContainer() {
                         </div>
                     )}
 
-                    {messages.map((message) => (
-                        <div
-                            key={message.id}
-                            className={`flex ${
-                                message.sender === "user"
-                                    ? "justify-end"
-                                    : "justify-start"
-                            }`}
-                        >
-                            <div
-                                className={`max-w-xs lg:max-w-md px-4 py-2 rounded-lg ${
-                                    message.sender === "user"
-                                        ? "bg-primary text-primary-foreground rounded-br-none"
-                                        : "bg-card border border-border text-foreground rounded-bl-none"
-                                }`}
-                            >
-                                {message.image && (
-                                    <div className="mb-2">
-                                        <img
-                                            src={
-                                                message.image.src ||
-                                                "/placeholder.svg"
-                                            }
-                                            alt={message.image.fileName}
-                                            className="rounded max-w-full h-auto"
-                                        />
-                                        <p className="text-xs mt-1 opacity-70">
-                                            {message.image.fileName}
-                                        </p>
+                    {messages.map((message) => {
+                        const isUser = message.sender === "user";
+                        const containerJustify = isUser
+                            ? "justify-end"
+                            : "justify-start";
+                        const bubbleClass = isUser
+                            ? "bg-primary text-primary-foreground rounded-br-none"
+                            : "bg-card border border-border text-foreground rounded-bl-none";
+
+                        // If user message contains both image and text, render two separate bubbles (stacked vertically)
+                        if (isUser && message.image && message.text) {
+                            return (
+                                <div
+                                    key={message.id}
+                                    className={`flex ${containerJustify}`}
+                                >
+                                    <div className="max-w-xs lg:max-w-md flex flex-col items-end gap-2">
+                                        {/* Image bubble */}
+                                        <div
+                                            className={`px-4 py-2 rounded-lg ${bubbleClass}`}
+                                        >
+                                            <div className="mb-2">
+                                                <img
+                                                    src={
+                                                        message.image.src ||
+                                                        "/placeholder.svg"
+                                                    }
+                                                    alt={message.image.fileName}
+                                                    className="rounded max-w-[200px] h-auto"
+                                                />
+                                                <p className="text-xs mt-1 opacity-70">
+                                                    {message.image.fileName}
+                                                </p>
+                                            </div>
+                                        </div>
+
+                                        {/* Text bubble */}
+                                        <div
+                                            className={`px-4 py-2 rounded-lg ${bubbleClass}`}
+                                        >
+                                            <p className="break-words">
+                                                {message.text}
+                                            </p>
+                                            <p className="text-xs mt-1 opacity-70">
+                                                {message.timestamp.toLocaleTimeString(
+                                                    [],
+                                                    {
+                                                        hour: "2-digit",
+                                                        minute: "2-digit",
+                                                    }
+                                                )}
+                                            </p>
+                                        </div>
                                     </div>
-                                )}
-                                {message.media &&
-                                    message.media.type === "video" && (
+                                </div>
+                            );
+                        }
+
+                        // Default rendering (single bubble) for other cases
+                        return (
+                            <div
+                                key={message.id}
+                                className={`flex ${containerJustify}`}
+                            >
+                                <div
+                                    className={`max-w-xs lg:max-w-md px-4 py-2 rounded-lg ${bubbleClass}`}
+                                >
+                                    {message.image && (
                                         <div className="mb-2">
-                                            <video
-                                                src={message.media.src}
-                                                controls
-                                                className="rounded max-w-full h-auto"
+                                            <img
+                                                src={
+                                                    message.image.src ||
+                                                    "/placeholder.svg"
+                                                }
+                                                alt={message.image.fileName}
+                                                className="rounded max-w-[200px] h-auto"
                                             />
                                             <p className="text-xs mt-1 opacity-70">
-                                                Video kết quả
+                                                {message.image.fileName}
                                             </p>
                                         </div>
                                     )}
-                                {message.text && (
-                                    <p className="break-words">
-                                        {message.text}
+                                    {message.media &&
+                                        message.media.type === "video" && (
+                                            <div className="mb-2">
+                                                <video
+                                                    src={message.media.src}
+                                                    controls
+                                                    className="rounded max-w-[200px] h-auto"
+                                                />
+                                                <p className="text-xs mt-1 opacity-70">
+                                                    Video kết quả
+                                                </p>
+                                            </div>
+                                        )}
+                                    {message.text && (
+                                        <p className="break-words">
+                                            {message.text}
+                                        </p>
+                                    )}
+                                    <p className="text-xs mt-1 opacity-70">
+                                        {message.timestamp.toLocaleTimeString(
+                                            [],
+                                            {
+                                                hour: "2-digit",
+                                                minute: "2-digit",
+                                            }
+                                        )}
                                     </p>
-                                )}
-                                <p className="text-xs mt-1 opacity-70">
-                                    {message.timestamp.toLocaleTimeString([], {
-                                        hour: "2-digit",
-                                        minute: "2-digit",
-                                    })}
-                                </p>
+                                </div>
                             </div>
-                        </div>
-                    ))}
+                        );
+                    })}
 
                     {isLoading && (
                         <div className="flex justify-start">
