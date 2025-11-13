@@ -237,7 +237,7 @@ export function ChatContainer() {
                 const tempId = (Date.now() + 1).toString();
                 const processingMessage: Message = {
                     id: tempId,
-                    text: "Đang tạo video — quá trình có thể mất khoảng 30–60 giây. Vui lòng chờ trong giây lát.",
+                    text: "Đang tạo video — quá trình có thể mất khoảng 30–60 giây. Vui lòng chờ trong giây lát. Vui lòng không đóng trang này.",
                     sender: "bot",
                     timestamp: new Date(),
                     thinking:
@@ -424,7 +424,7 @@ export function ChatContainer() {
                             m.id === tempId
                                 ? {
                                       ...m,
-                                      text: "Quá trình tạo video đang mất nhiều thời gian hơn dự kiến. Đang tiếp tục kiểm tra...",
+                                      text: "Quá trình tạo video đang mất nhiều thời gian hơn dự kiến. Đang tiếp tục kiểm tra... Vui lòng không đóng trang này.",
                                       // Store taskId in a custom field for manual retry
                                       taskId: data.taskId,
                                   }
