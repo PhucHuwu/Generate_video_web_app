@@ -1,5 +1,5 @@
 "use client";
-import { ChatContainer } from "@/frontend/chat-container";
+import { ChatContainer } from "@/app/chat-container";
 
 export default function ChatPage() {
     return <ChatContainer />;
