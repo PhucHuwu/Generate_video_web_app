@@ -1306,7 +1306,7 @@ export function ChatContainer() {
                                     isLoading || isProcessing || !uploadedImage
                                 }
                                 title={
-                                    !uploadedImage
+                                    !uploadedImage  
                                         ? "Vui lòng upload ảnh trước khi sinh prompt"
                                         : "Sinh prompt từ ảnh"
                                 }
