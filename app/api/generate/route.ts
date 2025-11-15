@@ -125,7 +125,7 @@ export async function POST(request: NextRequest) {
                 finalNegative = `${finalNegative}, ${FACE_RULE_NEGATIVE}`;
             }
         } else {
-            finalNegative = `blur, distort, low quality, modest, reserved, decent, unsexy, asexual, prudish, chaste, ${FACE_RULE_NEGATIVE}`;
+            finalNegative = `slow, blur, distort, low quality, modest, reserved, decent, unsexy, asexual, prudish, chaste, ${FACE_RULE_NEGATIVE}`;
         }
 
         const result = await generateMedia(
@@ -142,7 +142,68 @@ export async function POST(request: NextRequest) {
         return NextResponse.json(result);
     } catch (err: any) {
         console.error("/api/generate error", err);
-        const message = err?.message || "Lỗi máy chủ";
-        return NextResponse.json({ error: message }, { status: 500 });
+        const rawMessage = err?.message || "Lỗi máy chủ";
+
+        // Try to detect embedded JSON in the thrown error message (e.g., from generate-service)
+        let parsed: any = null;
+        try {
+            const m = String(rawMessage).match(/(\{[\s\S]*\})/);
+            if (m) parsed = JSON.parse(m[1]);
+        } catch (e) {
+            parsed = null;
+        }
+
+        // If parsed contains createResp or a KIE response shape, extract code/msg
+        const code =
+            parsed?.code ||
+            parsed?.createResp?.code ||
+            parsed?.createResp?.data?.code;
+        const rawMsg =
+            parsed?.msg ||
+            parsed?.createResp?.msg ||
+            parsed?.createResp?.data?.msg;
+
+        // Map known KIE codes to HTTP status and friendly Vietnamese messages
+        const kieCodeToHttp: Record<number, number> = {
+            200: 200,
+            401: 401,
+            402: 402,
+            404: 404,
+            422: 422,
+            429: 429,
+            455: 503, // map service maintenance to 503
+            500: 500,
+            505: 503,
+        };
+
+        const kieCodeMap: Record<number, string> = {
+            401: "Không xác thực — kiểm tra thông tin đăng nhập hoặc API key.",
+            402: "Không đủ credits — vui lòng nạp thêm để tiếp tục sử dụng.",
+            404: "Không tìm thấy — endpoint hoặc tài nguyên không tồn tại.",
+            422: "Dữ liệu không hợp lệ — kiểm tra prompt và ảnh gửi lên.",
+            429: "Bị giới hạn tần suất — thử lại sau một lúc.",
+            455: "Dịch vụ đang bảo trì — vui lòng thử lại sau.",
+            500: "Lỗi máy chủ — vui lòng thử lại sau hoặc liên hệ hỗ trợ.",
+            505: "Tính năng hiện đang tắt — tính năng này không khả dụng.",
+        };
+
+        if (typeof code === "number") {
+            const status = kieCodeToHttp[code] || 500;
+            const friendlyBase =
+                kieCodeMap[code] || "Lỗi từ dịch vụ bên thứ ba";
+            const friendly = rawMsg
+                ? `${friendlyBase} (${rawMsg})`
+                : friendlyBase;
+            return NextResponse.json(
+                {
+                    error: `Lỗi ${code}: ${friendly}`,
+                    raw: parsed || rawMessage,
+                },
+                { status }
+            );
+        }
+
+        // Fallback: return the original message as error with 500
+        return NextResponse.json({ error: rawMessage }, { status: 500 });
     }
 }

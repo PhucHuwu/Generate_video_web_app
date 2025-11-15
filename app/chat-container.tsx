@@ -62,6 +62,9 @@ function AnimatedEllipsis({ interval = 400 }: { interval?: number }) {
 export function ChatContainer() {
     const router = useRouter();
     const { theme, toggleTheme } = useTheme();
+    const [credits, setCredits] = useState<number | null>(null);
+    const [isFetchingCredits, setIsFetchingCredits] = useState(false);
+    const [creditsError, setCreditsError] = useState<string | null>(null);
     // Track if component has mounted on client to avoid hydration mismatch
     const [isClient, setIsClient] = useState(false);
     // Track if we've loaded chat history from localStorage (to prevent overwriting on mount)
@@ -78,7 +81,49 @@ export function ChatContainer() {
                 router.replace("/login");
             }
         })();
+        // fetch credits on mount
+        fetchCredits().catch(() => {});
     }, [router]);
+
+    async function fetchCredits() {
+        setIsFetchingCredits(true);
+        setCreditsError(null);
+        try {
+            const res = await fetch("/api/credits");
+            const txt = await res.text().catch(() => "");
+            let parsed: any = null;
+            try {
+                parsed = txt ? JSON.parse(txt) : null;
+            } catch (e) {
+                parsed = null;
+            }
+
+            if (!res.ok) {
+                const msg =
+                    parsed?.msg || parsed?.error || txt || `HTTP ${res.status}`;
+                setCredits(null);
+                setCreditsError(String(msg));
+                return;
+            }
+
+            // Expected shape: { code: 200, msg: 'success', data: 100 }
+            const dataVal = parsed?.data ?? parsed;
+            const value =
+                typeof dataVal === "number" ? dataVal : Number(dataVal);
+            if (!Number.isFinite(value)) {
+                setCredits(null);
+                setCreditsError("Không đọc được số dư");
+                return;
+            }
+            setCredits(value);
+        } catch (err: any) {
+            console.error("Failed to fetch credits:", err);
+            setCredits(null);
+            setCreditsError(String(err?.message || err));
+        } finally {
+            setIsFetchingCredits(false);
+        }
+    }
     const STORAGE_KEY = "chat_history_v1";
     // Start with empty messages to match server-side render
     const [messages, setMessages] = useState<Message[]>([]);
@@ -244,6 +289,13 @@ export function ChatContainer() {
         };
 
         setMessages((prev) => [...prev, userMessage]);
+        // Capture image info before clearing preview so we can send it in the request
+        const imageToSend = uploadedImage
+            ? {
+                  src: uploadedImage.src,
+                  fileName: uploadedImage.fileName,
+              }
+            : undefined;
         // Clear the small preview immediately when the user sends the message
         setUploadedImage(null);
         setInput("");
@@ -252,9 +304,11 @@ export function ChatContainer() {
         try {
             // Call our backend generate endpoint which handles the external API and polling
             const body: any = { prompt: input };
-            // uploadedImage guaranteed by validation above
-            body.imageBase64 = uploadedImage.src;
-            body.fileName = uploadedImage.fileName;
+            // Use captured image data (we cleared `uploadedImage` above)
+            if (imageToSend) {
+                body.imageBase64 = imageToSend.src;
+                body.fileName = imageToSend.fileName;
+            }
             // Include optional API key overrides from settings (if set)
             if (settings.googleApiKey)
                 body.googleApiKey = settings.googleApiKey;
@@ -269,8 +323,72 @@ export function ChatContainer() {
             });
 
             if (!response.ok) {
-                const text = await response.text().catch(() => "");
-                throw new Error(`Generate failed: ${response.status} ${text}`);
+                // Try to extract a useful error message from the body
+                const txt = await response.text().catch(() => "");
+                let friendlyRaw = txt || `Status ${response.status}`;
+                let parsed: any = undefined;
+                try {
+                    parsed = JSON.parse(txt || "{}");
+                } catch (e) {
+                    // ignore
+                }
+
+                // Extract possible KIE code and message from known shapes
+                const code =
+                    parsed?.code ||
+                    parsed?.createResp?.code ||
+                    parsed?.raw?.code ||
+                    parsed?.data?.code;
+                const rawMsg =
+                    parsed?.error ||
+                    parsed?.msg ||
+                    parsed?.createResp?.msg ||
+                    parsed?.raw?.msg ||
+                    friendlyRaw;
+
+                // Map known KIE status codes to friendly Vietnamese messages
+                const kieCodeMap: Record<number, string> = {
+                    401: "Không xác thực — kiểm tra thông tin đăng nhập hoặc API key.",
+                    402: "Không đủ credits — vui lòng nạp thêm để tiếp tục sử dụng.",
+                    404: "Không tìm thấy — endpoint hoặc tài nguyên không tồn tại.",
+                    422: "Dữ liệu không hợp lệ — kiểm tra prompt và ảnh gửi lên.",
+                    429: "Bị giới hạn tần suất — thử lại sau một lúc.",
+                    455: "Dịch vụ đang bảo trì — vui lòng thử lại sau.",
+                    500: "Lỗi máy chủ — vui lòng thử lại sau hoặc liên hệ hỗ trợ.",
+                    505: "Tính năng hiện đang tắt — tính năng này không khả dụng.",
+                };
+
+                let friendly = String(rawMsg);
+                if (
+                    parsed &&
+                    typeof parsed.error === "string" &&
+                    parsed.error.trim().startsWith("Lỗi")
+                ) {
+                    // The server already returned a localized 'Lỗi ...' message — use it verbatim
+                    friendly = parsed.error;
+                } else if (typeof code === "number" && kieCodeMap[code]) {
+                    friendly =
+                        `Lỗi ${code}: ${kieCodeMap[code]}` +
+                        (rawMsg ? ` (${rawMsg})` : "");
+                } else if (parsed && (parsed.error || parsed.msg)) {
+                    friendly = parsed.error || parsed.msg;
+                }
+
+                const botText =
+                    typeof friendly === "string" &&
+                    friendly.trim().startsWith("Lỗi")
+                        ? friendly
+                        : `Lỗi: ${friendly}`;
+
+                const botMessage: Message = {
+                    id: (Date.now() + 2).toString(),
+                    text: botText,
+                    sender: "bot",
+                    timestamp: new Date(),
+                };
+                setMessages((prev) => [...prev, botMessage]);
+                setIsLoading(false);
+                return;
             }
 
             const data = await response.json();
@@ -651,11 +769,48 @@ export function ChatContainer() {
                 };
                 setMessages((prev) => [...prev, botMessage]);
             }
-        } catch (error) {
+        } catch (error: any) {
             console.error("Error sending message:", error);
+            let friendly =
+                (error && error.message) ||
+                "Không nhận được phản hồi từ dịch vụ.";
+
+            // If the error message contains a JSON response, try to extract code/msg
+            try {
+                const jsonMatch = String(friendly).match(/(\{[\s\S]*\})/);
+                if (jsonMatch) {
+                    const parsed = JSON.parse(jsonMatch[1]);
+                    const code = parsed?.code || parsed?.createResp?.code;
+                    const rawMsg =
+                        parsed?.msg ||
+                        parsed?.error ||
+                        parsed?.createResp?.msg ||
+                        parsed?.raw?.msg;
+                    const kieCodeMap: Record<number, string> = {
+                        401: "Không xác thực — kiểm tra thông tin đăng nhập hoặc API key.",
+                        402: "Không đủ credits — vui lòng nạp thêm để tiếp tục sử dụng.",
+                        404: "Không tìm thấy — endpoint hoặc tài nguyên không tồn tại.",
+                        422: "Dữ liệu không hợp lệ — kiểm tra prompt và ảnh gửi lên.",
+                        429: "Bị giới hạn tần suất — thử lại sau một lúc.",
+                        455: "Dịch vụ đang bảo trì — vui lòng thử lại sau.",
+                        500: "Lỗi máy chủ — vui lòng thử lại sau hoặc liên hệ hỗ trợ.",
+                        505: "Tính năng hiện đang tắt — tính năng này không khả dụng.",
+                    };
+                    if (typeof code === "number" && kieCodeMap[code]) {
+                        friendly =
+                            `Lỗi ${code}: ${kieCodeMap[code]}` +
+                            (rawMsg ? ` (${rawMsg})` : "");
+                    } else if (rawMsg) {
+                        friendly = String(rawMsg);
+                    }
+                }
+            } catch (e) {
+                // ignore parse errors
+            }
+
             const errorMessage: Message = {
                 id: (Date.now() + 1).toString(),
-                text: "Lỗi: Không nhận được phản hồi từ dịch vụ.",
+                text: `Lỗi: ${friendly}`,
                 sender: "bot",
                 timestamp: new Date(),
             };
@@ -771,6 +926,31 @@ export function ChatContainer() {
                     </div>
                     <div>
                         <div className="flex items-center gap-2">
+                            <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={fetchCredits}
+                                disabled={isFetchingCredits}
+                                title={
+                                    creditsError
+                                        ? `Lỗi: ${creditsError}`
+                                        : "Lấy số dư hiện tại"
+                                }
+                            >
+                                <span className="text-sm">
+                                    {isFetchingCredits ? (
+                                        <span className="inline-flex items-center gap-1">
+                                            <span className="w-2 h-2 rounded-full bg-muted-foreground animate-bounce" />
+                                            <span>$...</span>
+                                        </span>
+                                    ) : credits === null ? (
+                                        <span>$-</span>
+                                    ) : (
+                                        <span>${credits}</span>
+                                    )}
+                                </span>
+                            </Button>
+
                             <Button
                                 size="sm"
                                 variant="ghost"
