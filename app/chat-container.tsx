@@ -56,6 +56,10 @@ function AnimatedEllipsis({ interval = 400 }: { interval?: number }) {
 export function ChatContainer() {
     const router = useRouter();
     const { theme, toggleTheme } = useTheme();
+    // Track if component has mounted on client to avoid hydration mismatch
+    const [isClient, setIsClient] = useState(false);
+    // Track if we've loaded chat history from localStorage (to prevent overwriting on mount)
+    const [hasLoadedHistory, setHasLoadedHistory] = useState(false);
     // Check authentication with the backend; frontend only calls the API
     useEffect(() => {
         (async () => {
@@ -69,8 +73,9 @@ export function ChatContainer() {
             }
         })();
     }, [router]);
-    const [messages, setMessages] = useState<Message[]>([]);
     const STORAGE_KEY = "chat_history_v1";
+    // Start with empty messages to match server-side render
+    const [messages, setMessages] = useState<Message[]>([]);
     const [isProcessing, setIsProcessing] = useState(false);
     const [input, setInput] = useState("");
     const [uploadedImage, setUploadedImage] = useState<{
@@ -199,33 +204,53 @@ export function ChatContainer() {
         };
     }, []);
 
-    // Load chat history from localStorage on mount
+    // Load chat history and API keys on mount (client-side only to avoid hydration mismatch)
     useEffect(() => {
+        setIsClient(true);
         try {
             const raw = localStorage.getItem(STORAGE_KEY);
             if (raw) {
-                const parsed = JSON.parse(raw) as any[];
-                const restored: Message[] = parsed.map((m) => ({
-                    ...m,
-                    // restore timestamp to Date
-                    timestamp: m.timestamp ? new Date(m.timestamp) : new Date(),
-                }));
-                setMessages(restored);
+                const parsed = JSON.parse(raw);
+                // Validate that parsed data is an array before mapping
+                if (Array.isArray(parsed)) {
+                    const restored: Message[] = parsed.map((m) => ({
+                        ...m,
+                        timestamp: m.timestamp
+                            ? new Date(m.timestamp)
+                            : new Date(),
+                    }));
+                    setMessages(restored);
+                } else {
+                    console.warn(
+                        "Invalid chat history format (not an array), clearing storage"
+                    );
+                    localStorage.removeItem(STORAGE_KEY);
+                }
             }
         } catch (e) {
             console.warn("Failed to load chat history:", e);
+            // If parsing fails, clear corrupted data
+            try {
+                localStorage.removeItem(STORAGE_KEY);
+            } catch (removeErr) {
+                // ignore
+            }
         }
-        // Load saved API keys if present
         try {
             const s = localStorage.getItem("api_keys_v1");
             if (s) setSettings(JSON.parse(s));
         } catch (e) {
             // ignore
         }
+        // Mark that we've loaded history to prevent overwriting on mount
+        setHasLoadedHistory(true);
     }, []);
 
-    // Persist chat history to localStorage whenever messages change
+    // Persist chat history to localStorage whenever messages change (but not on initial mount)
     useEffect(() => {
+        // Don't save until we've loaded the history first to avoid overwriting with empty array
+        if (!hasLoadedHistory) return;
+
         try {
             const toSave = messages.map((m) => ({
                 ...m,
@@ -238,13 +263,15 @@ export function ChatContainer() {
         } catch (e) {
             console.warn("Failed to save chat history:", e);
         }
-    }, [messages]);
+    }, [messages, hasLoadedHistory]);
 
     const handleSendMessage = async (e: React.FormEvent) => {
         e.preventDefault();
         // Require an image for all requests; disallow prompt-only submissions
         if (!uploadedImage) {
-            alert("Vui lòng chọn ảnh (bắt buộc). Trường hợp chỉ nhập prompt không được hỗ trợ.");
+            alert(
+                "Vui lòng chọn ảnh (bắt buộc). Trường hợp chỉ nhập prompt không được hỗ trợ."
+            );
             return;
         }
 
@@ -772,6 +799,8 @@ export function ChatContainer() {
         } catch (e) {
             // ignore
         }
+        // After clearing, we need to allow saving again
+        setHasLoadedHistory(true);
     };
 
     return (
@@ -824,11 +853,7 @@ export function ChatContainer() {
                                     } catch (e) {
                                         // ignore errors
                                     } finally {
-                                        try {
-                                            localStorage.removeItem(
-                                                "chat_history_v1"
-                                            );
-                                        } catch (e) {}
+                                        // Note: không xóa localStorage để giữ lịch sử chat khi đăng nhập lại
                                         router.replace("/login");
                                     }
                                 }}
@@ -843,7 +868,7 @@ export function ChatContainer() {
             {/* Messages Container */}
             <main className="flex-1 overflow-y-auto">
                 <div className="max-w-4xl mx-auto p-4 space-y-4">
-                    {messages.length === 0 && (
+                    {isClient && messages.length === 0 && (
                         <div className="flex flex-col items-center justify-center h-full pt-20 text-center">
                             <div className="text-muted-foreground space-y-2">
                                 <p className="text-lg font-medium">
@@ -1142,7 +1167,9 @@ export function ChatContainer() {
                         />
                         <Button
                             type="submit"
-                            disabled={isLoading || isProcessing || !uploadedImage}
+                            disabled={
+                                isLoading || isProcessing || !uploadedImage
+                            }
                             size="icon"
                             className="bg-primary hover:bg-primary/90"
                         >
