@@ -1161,7 +1161,31 @@ export function ChatContainer() {
                             </div>
                         </div>
                     )}
-                    <form onSubmit={handleSendMessage} className="flex gap-2">
+                    <form
+                        onSubmit={handleSendMessage}
+                        className="flex gap-2 items-end"
+                    >
+                        <div className="flex flex-col items-center">
+                            <Button
+                                type="button"
+                                disabled={isLoading || isProcessing}
+                                size="icon"
+                                className="bg-muted-foreground hover:bg-muted-foreground/90"
+                                onClick={() => fileInputRef.current?.click()}
+                                title="Upload ảnh"
+                            >
+                                <Upload className="w-4 h-4" />
+                            </Button>
+                            <input
+                                ref={fileInputRef}
+                                type="file"
+                                accept="image/*"
+                                onChange={handleImageUpload}
+                                className="hidden"
+                                disabled={isLoading || isProcessing}
+                            />
+                        </div>
+
                         <textarea
                             ref={textareaRef}
                             placeholder="Nhập mô tả (bắt buộc kèm ảnh)..."
@@ -1183,23 +1207,7 @@ export function ChatContainer() {
                             disabled={isLoading || isProcessing}
                             className="flex-1 resize-none overflow-hidden rounded border border-border px-3 py-2 bg-transparent focus:outline-none"
                         />
-                        <Button
-                            type="button"
-                            disabled={isLoading || isProcessing}
-                            size="icon"
-                            className="bg-muted-foreground hover:bg-muted-foreground/90"
-                            onClick={() => fileInputRef.current?.click()}
-                        >
-                            <Upload className="w-4 h-4" />
-                        </Button>
-                        <input
-                            ref={fileInputRef}
-                            type="file"
-                            accept="image/*"
-                            onChange={handleImageUpload}
-                            className="hidden"
-                            disabled={isLoading || isProcessing}
-                        />
+
                         <Button
                             type="submit"
                             disabled={
