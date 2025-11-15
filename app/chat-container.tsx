@@ -5,7 +5,15 @@ import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Send, Upload, Sun, Moon, Settings, Trash } from "lucide-react";
+import {
+    Send,
+    Upload,
+    Sun,
+    Moon,
+    Settings,
+    Trash,
+    Sparkles,
+} from "lucide-react";
 import { useTheme } from "@/components/theme-toggle-provider";
 import NativeConfirm from "@/components/ui/native-confirm";
 
@@ -286,10 +294,17 @@ export function ChatContainer() {
 
     const handleSendMessage = async (e: React.FormEvent) => {
         e.preventDefault();
-        // Require an image for all requests; disallow prompt-only submissions
+        // Require an image and a prompt for all requests; disallow prompt-only submissions
         if (!uploadedImage) {
             alert(
                 "Vui lòng chọn ảnh (bắt buộc). Trường hợp chỉ nhập prompt không được hỗ trợ."
+            );
+            return;
+        }
+
+        if (!input || input.trim() === "") {
+            alert(
+                "Vui lòng tạo hoặc nhập mô tả trước khi bắt đầu tạo video. Nhấn 'Gen Prompt' để sinh mô tả từ ảnh."
             );
             return;
         }
@@ -1182,6 +1197,67 @@ export function ChatContainer() {
                             </div>
                         </div>
                     )}
+                    {/* Gen Prompt button: call /api/describe to get Gemini -> Groq output */}
+                    <div className="mb-2">
+                        <Button
+                            size="sm"
+                            onClick={async () => {
+                                if (!uploadedImage) return;
+                                setIsLoading(true);
+                                try {
+                                    const body: any = {
+                                        imageBase64: uploadedImage.src,
+                                    };
+                                    if (settings.googleApiKey)
+                                        body.googleApiKey =
+                                            settings.googleApiKey;
+                                    if (settings.openrouterApiKey)
+                                        body.openrouterApiKey =
+                                            settings.openrouterApiKey;
+                                    if (settings.groqApiKey)
+                                        body.groqApiKey = settings.groqApiKey;
+
+                                    const res = await fetch("/api/describe", {
+                                        method: "POST",
+                                        headers: {
+                                            "Content-Type": "application/json",
+                                        },
+                                        body: JSON.stringify(body),
+                                    });
+
+                                    if (!res.ok) {
+                                        const txt = await res
+                                            .text()
+                                            .catch(() => "");
+                                        throw new Error(
+                                            `Describe failed: ${res.status} ${txt}`
+                                        );
+                                    }
+
+                                    const data = await res.json();
+                                    // Fill the input with Groq output if available, otherwise Gemini description
+                                    const suggested =
+                                        data?.groqOutput ||
+                                        data?.description ||
+                                        "";
+                                    setInput(suggested);
+                                    // focus textarea for quick editing
+                                    textareaRef.current?.focus();
+                                } catch (err) {
+                                    console.error("Gen Prompt error:", err);
+                                    alert(
+                                        "Lỗi khi sinh prompt từ ảnh. Vui lòng thử lại."
+                                    );
+                                } finally {
+                                    setIsLoading(false);
+                                }
+                            }}
+                            disabled={isLoading || isProcessing}
+                        >
+                            <span className="sr-only">Gen Prompt</span>
+                            <Sparkles className="w-4 h-4" aria-hidden />
+                        </Button>
+                    </div>
                     <form
                         onSubmit={handleSendMessage}
                         className="flex gap-2 items-end"
@@ -1232,7 +1308,11 @@ export function ChatContainer() {
                         <Button
                             type="submit"
                             disabled={
-                                isLoading || isProcessing || !uploadedImage
+                                isLoading ||
+                                isProcessing ||
+                                !uploadedImage ||
+                                !input ||
+                                input.trim() === ""
                             }
                             size="icon"
                             className="bg-primary hover:bg-primary/90"

@@ -111,7 +111,8 @@ export async function generateMedia(
         throw new Error("KIE_API_KEY not configured on server");
     }
 
-    // New: disallow text-only generation. Service requires an image_url (or an uploaded image converted to a public URL).
+    // Disallow missing prompt here. The application flow now requires the client to
+    // generate a prompt first (via `/api/describe`) or provide one manually.
     if (!input.image_url) {
         throw new Error(
             "Dịch vụ chỉ hỗ trợ tạo video từ ảnh hoặc ảnh+kèm prompt. Trường hợp chỉ nhập prompt không được hỗ trợ."
@@ -127,35 +128,13 @@ export async function generateMedia(
 
     const { pollIntervalMs = 2000, maxAttempts = 30 } = opts;
 
-    // If no prompt provided but an image URL is present, ask Gemini to describe the image,
-    // then send that description to Groq and log the outputs. Use Gemini description as
-    // the prompt for downstream generation if prompt was empty.
-    let geminiDescription: string | undefined;
-    let groqOutput: string | undefined;
-    if (
-        (typeof input.prompt !== "string" || input.prompt.trim() === "") &&
-        input.image_url
-    ) {
-        try {
-            geminiDescription = await describeImageWithGemini(input.image_url);
-            console.log("Gemini description:", geminiDescription);
-        } catch (e) {
-            console.error("Gemini describe failed:", e);
-            throw e;
-        }
-
-        try {
-            groqOutput = await sendToGroq(geminiDescription || "");
-            console.log("Groq output:", groqOutput);
-        } catch (e) {
-            console.error("Groq processing failed:", e);
-            // don't throw here; we still want to attempt generation using the Gemini description
-        }
-
-        // Ensure the prompt used for KIE is the Gemini description when user didn't provide one
-        if (!input.prompt || input.prompt.trim() === "") {
-            input.prompt = geminiDescription || "";
-        }
+    // Require a non-empty prompt. The client is responsible for obtaining a prompt
+    // (image -> Gemini -> Groq) and sending it with the request. This prevents the
+    // server from implicitly calling Gemini/Groq during generation.
+    if (typeof input.prompt !== "string" || input.prompt.trim() === "") {
+        throw new Error(
+            "Cần prompt để tạo media. Vui lòng nhấn 'Gen Prompt' để tự động sinh prompt từ ảnh hoặc nhập mô tả thủ công."
+        );
     }
 
     // choose model based on presence of image_url
@@ -164,11 +143,7 @@ export async function generateMedia(
         : "kling/v2-5-turbo-text-to-video-pro";
 
     const createPayload: any = {
-        // Prefer Groq output as the prompt when available (image->Gemini->Groq flow)
-        prompt:
-            typeof groqOutput === "string" && groqOutput.trim() !== ""
-                ? groqOutput
-                : input.prompt,
+        prompt: input.prompt,
         // Use default 10 seconds when not provided. Keep explicit "5" if requested.
         duration: input.duration ?? "10",
         negative_prompt:
@@ -246,8 +221,6 @@ export async function generateMedia(
                 state: "success",
                 resultUrls,
                 raw: info,
-                geminiDescription,
-                groqOutput,
             };
         }
 
@@ -256,8 +229,6 @@ export async function generateMedia(
                 taskId,
                 state: "fail",
                 raw: info,
-                geminiDescription,
-                groqOutput,
             };
         }
 
@@ -298,8 +269,6 @@ export async function generateMedia(
                 state: "success",
                 resultUrls,
                 raw: info,
-                geminiDescription,
-                groqOutput,
             };
         }
 
@@ -308,8 +277,6 @@ export async function generateMedia(
                 taskId,
                 state: "fail",
                 raw: info,
-                geminiDescription,
-                groqOutput,
             };
         }
     }
@@ -324,8 +291,6 @@ export async function generateMedia(
         state: "fail",
         resultUrls: undefined,
         raw: lastInfo,
-        geminiDescription,
-        groqOutput,
     };
 }
 

@@ -2,8 +2,6 @@ import "@/lib/early-warnings"; // register warning handler early to suppress kno
 import { NextRequest, NextResponse } from "next/server";
 import generateMedia, { createTask } from "@/backend/generate-service";
 import { uploadImageToCloudinary } from "@/lib/cloudinary";
-import { describeImageWithGemini } from "@/backend/gemini-service";
-import { sendToGroq } from "@/backend/groq-service";
 
 // Quy tắc prompt chung: đảm bảo mặt nhân vật không bị cắt trong video.
 // Sử dụng một hướng dẫn rõ ràng (positive) và các từ khóa tránh (negative) để tăng khả năng tuân thủ.
@@ -79,147 +77,15 @@ export async function POST(request: NextRequest) {
             body?.prompt && String(body.prompt).trim() !== ""
         );
 
-        // If prompt is empty but an image was provided, obtain Gemini description and Groq output
-        // then continue to call generateMedia so KIE can produce the final video. Prefer Groq output
-        // as the prompt for KIE; fall back to Gemini description when Groq fails.
-        if (!prompt && image_url) {
-            console.log(
-                "No prompt provided; calling gemini-service which uses its internal auto-prompt for image-only request."
+        // Require a prompt. The new flow expects the client to call `/api/describe`
+        // (or provide a prompt manually) before calling `/api/generate`.
+        if (!prompt) {
+            return NextResponse.json(
+                {
+                    error: "Cần prompt để tạo media. Vui lòng nhấn 'Gen Prompt' để sinh mô tả từ ảnh hoặc nhập mô tả trước khi gửi.",
+                },
+                { status: 400 }
             );
-
-            let description: string | undefined;
-            let groqOutput: string | undefined;
-
-            try {
-                // Allow client to provide API key overrides in the request body
-                const googleApiKey = typeof body?.googleApiKey === "string" ? body.googleApiKey : undefined;
-                const openrouterApiKey = typeof body?.openrouterApiKey === "string" ? body.openrouterApiKey : undefined;
-
-                description = await describeImageWithGemini(image_url, googleApiKey, openrouterApiKey);
-                console.log("Gemini description:", description);
-            } catch (e: any) {
-                console.error("Gemini describe failed:", e);
-                return NextResponse.json(
-                    { error: `Gemini describe failed: ${e?.message || e}` },
-                    { status: 500 }
-                );
-            }
-
-            // Try Groq; if it fails, log and continue using the Gemini description as prompt
-            try {
-                const groqApiKey = typeof body?.groqApiKey === "string" ? body.groqApiKey : undefined;
-                groqOutput = await sendToGroq(description || "", groqApiKey);
-                console.log("Groq output:", groqOutput);
-            } catch (gErr: any) {
-                console.error("Groq processing failed:", gErr);
-                groqOutput = undefined;
-            }
-
-            // Use Groq output when available, otherwise fall back to Gemini description
-            prompt =
-                typeof groqOutput === "string" && groqOutput.trim() !== ""
-                    ? groqOutput
-                    : description || "";
-
-            // Create a KIE task immediately so the client can poll while seeing the AI 'thinking'
-            const durationForCreate = body?.duration === "5" ? "5" : "10";
-            const negativeForCreate =
-                typeof body?.negative_prompt === "string"
-                    ? body.negative_prompt
-                    : undefined;
-            const cfgForCreate =
-                typeof body?.cfg_scale === "number"
-                    ? body.cfg_scale
-                    : undefined;
-
-            const model = image_url
-                ? "kling/v2-5-turbo-image-to-video-pro"
-                : "kling/v2-5-turbo-text-to-video-pro";
-
-            const createPayload: any = {
-                // Thêm quy tắc mặt vào prompt (đặt trước để KIE ưu tiên tuân thủ)
-                prompt: `${FACE_RULE_POSITIVE} ${prompt}`.trim(),
-                duration: durationForCreate ?? "10",
-                // Nếu client đã cung cấp negative_prompt thì nối thêm quy tắc mặt,
-                // ngược lại dùng mặc định bao gồm quy tắc mặt để tránh bị cắt.
-                negative_prompt:
-                    negativeForCreate && negativeForCreate.trim() !== ""
-                        ? `${negativeForCreate}, ${FACE_RULE_NEGATIVE}`
-                        : `blur, distort, and low quality, ${FACE_RULE_NEGATIVE}`,
-                cfg_scale:
-                    typeof cfgForCreate === "number" ? cfgForCreate : 0.3,
-            };
-            if (image_url) createPayload.image_url = image_url;
-
-            // Attempt to create task, with fallback on 503/unavailable
-            let createResp: any;
-            try {
-                createResp = await createTask(
-                    model,
-                    createPayload,
-                    body?.callBackUrl
-                );
-            } catch (err: any) {
-                const msg = String(err?.message || err);
-                if (msg.includes("503") || /unavailab/i.test(msg)) {
-                    console.warn(
-                        "createTask failed with 503/unavailable — falling back to gemini-2.0-flash-lite",
-                        { err: msg }
-                    );
-                    try {
-                        createResp = await createTask(
-                            "gemini-2.0-flash-lite",
-                            createPayload,
-                            body?.callBackUrl
-                        );
-                    } catch (err2: any) {
-                        console.error(
-                            "Both primary and fallback createTask failed:",
-                            err2
-                        );
-                        return NextResponse.json(
-                            { error: String(err2?.message || err2) },
-                            { status: 500 }
-                        );
-                    }
-                } else {
-                    console.error("createTask failed:", err);
-                    return NextResponse.json(
-                        { error: String(err?.message || err) },
-                        { status: 500 }
-                    );
-                }
-            }
-
-            const taskId =
-                createResp?.data?.taskId ||
-                createResp?.taskId ||
-                createResp?.data?.id ||
-                createResp?.id;
-            if (!taskId) {
-                console.error("createTask returned no taskId", { createResp });
-                let summary = "";
-                try {
-                    summary = JSON.stringify(createResp);
-                } catch (e) {
-                    summary = String(createResp);
-                }
-                return NextResponse.json(
-                    {
-                        error: `No taskId returned from createTask; response: ${summary}`,
-                    },
-                    { status: 500 }
-                );
-            }
-
-            // Return immediate response containing the Gemini/Groq outputs and the taskId for polling
-            return NextResponse.json({
-                description,
-                groqOutput,
-                image_url,
-                taskId,
-                state: "waiting",
-            });
         }
 
         // If there's still no prompt (no prompt and no image), return error
