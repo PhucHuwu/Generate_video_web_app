@@ -1077,9 +1077,9 @@ export function ChatContainer() {
                     {/* Gen Prompt will be shown next to the send button */}
                     <form
                         onSubmit={handleSendMessage}
-                        className="flex gap-2 items-end"
+                        className="flex gap-2 items-center"
                     >
-                        <div className="flex flex-col items-center">
+                        <div className="flex items-center">
                             <Button
                                 type="button"
                                 disabled={isLoading || isProcessing}
