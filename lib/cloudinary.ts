@@ -13,14 +13,9 @@ cloudinary.config({
  * @param folder - Optional folder name in Cloudinary
  * @returns Public HTTPS URL of the uploaded image
  */
-export async function uploadImageToCloudinary(
-    base64Image: string,
-    folder: string = "video-generator"
-): Promise<string> {
+export async function uploadImageToCloudinary(base64Image: string, folder: string = "video-generator"): Promise<string> {
     if (!process.env.CLOUDINARY_CLOUD_NAME) {
-        throw new Error(
-            "CLOUDINARY_CLOUD_NAME not configured. Please set Cloudinary environment variables."
-        );
+        throw new Error("CLOUDINARY_CLOUD_NAME not configured. Please set Cloudinary environment variables.");
     }
 
     try {
@@ -34,10 +29,6 @@ export async function uploadImageToCloudinary(
         return uploadResponse.secure_url;
     } catch (error: any) {
         console.error("Cloudinary upload error:", error);
-        throw new Error(
-            `Failed to upload image to Cloudinary: ${
-                error.message || "Unknown error"
-            }`
-        );
+        throw new Error(`Failed to upload image to Cloudinary: ${error.message || "Unknown error"}`);
     }
 }

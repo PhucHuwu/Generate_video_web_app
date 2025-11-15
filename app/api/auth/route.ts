@@ -21,10 +21,7 @@ export async function GET(request: Request) {
         const SESSION_MS = 4 * 60 * 60 * 1000; // 4 hours
         if (Date.now() - ts > SESSION_MS) {
             // expired -> clear cookie and return 401
-            const res = NextResponse.json(
-                { ok: false, message: "expired" },
-                { status: 401 }
-            );
+            const res = NextResponse.json({ ok: false, message: "expired" }, { status: 401 });
             try {
                 res.cookies.set("auth_ts", "", { maxAge: 0, path: "/" });
             } catch (e) {}

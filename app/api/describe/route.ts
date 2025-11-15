@@ -19,31 +19,15 @@ export async function POST(request: NextRequest) {
 
         const body = await request.json();
 
-        let image_url: string | undefined =
-            typeof body?.image_url === "string" && body.image_url.trim() !== ""
-                ? body.image_url.trim()
-                : undefined;
+        let image_url: string | undefined = typeof body?.image_url === "string" && body.image_url.trim() !== "" ? body.image_url.trim() : undefined;
 
-        if (
-            !image_url &&
-            typeof body?.imageBase64 === "string" &&
-            body.imageBase64.startsWith("data:image/")
-        ) {
+        if (!image_url && typeof body?.imageBase64 === "string" && body.imageBase64.startsWith("data:image/")) {
             try {
                 image_url = await uploadImageToCloudinary(body.imageBase64);
-                console.log(
-                    "Image uploaded to Cloudinary (describe):",
-                    image_url
-                );
+                console.log("Image uploaded to Cloudinary (describe):", image_url);
             } catch (e: any) {
-                console.error(
-                    "Failed to upload image to Cloudinary (describe):",
-                    e
-                );
-                return NextResponse.json(
-                    { error: `Không thể upload ảnh: ${e.message}` },
-                    { status: 500 }
-                );
+                console.error("Failed to upload image to Cloudinary (describe):", e);
+                return NextResponse.json({ error: `Không thể upload ảnh: ${e.message}` }, { status: 500 });
             }
         }
 
@@ -57,40 +41,23 @@ export async function POST(request: NextRequest) {
         }
 
         if (!/^https:\/\//i.test(image_url)) {
-            return NextResponse.json(
-                { error: "image_url phải bắt đầu bằng https://" },
-                { status: 400 }
-            );
+            return NextResponse.json({ error: "image_url phải bắt đầu bằng https://" }, { status: 400 });
         }
 
         // Allow API key overrides from client (for dev/testing)
-        const googleApiKey =
-            typeof body?.googleApiKey === "string"
-                ? body.googleApiKey
-                : undefined;
-        const openrouterApiKey =
-            typeof body?.openrouterApiKey === "string"
-                ? body.openrouterApiKey
-                : undefined;
-        const groqApiKey =
-            typeof body?.groqApiKey === "string" ? body.groqApiKey : undefined;
+        const googleApiKey = typeof body?.googleApiKey === "string" ? body.googleApiKey : undefined;
+        const openrouterApiKey = typeof body?.openrouterApiKey === "string" ? body.openrouterApiKey : undefined;
+        const groqApiKey = typeof body?.groqApiKey === "string" ? body.groqApiKey : undefined;
 
         let description: string | undefined;
         let groqOutput: string | undefined;
 
         try {
-            description = await describeImageWithGemini(
-                image_url,
-                googleApiKey,
-                openrouterApiKey
-            );
+            description = await describeImageWithGemini(image_url, googleApiKey, openrouterApiKey);
             console.log("describe:", description);
         } catch (e: any) {
             console.error("Gemini describe failed:", e);
-            return NextResponse.json(
-                { error: `Gemini describe failed: ${e?.message || e}` },
-                { status: 500 }
-            );
+            return NextResponse.json({ error: `Gemini describe failed: ${e?.message || e}` }, { status: 500 });
         }
 
         try {
@@ -105,10 +72,7 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ description, groqOutput, image_url });
     } catch (err: any) {
         console.error("/api/describe error", err);
-        return NextResponse.json(
-            { error: err?.message || "Lỗi máy chủ" },
-            { status: 500 }
-        );
+        return NextResponse.json({ error: err?.message || "Lỗi máy chủ" }, { status: 500 });
     }
 }
 

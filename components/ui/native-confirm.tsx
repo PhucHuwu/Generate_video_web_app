@@ -34,23 +34,15 @@ export default function NativeConfirm({
                         <AlertTriangle className="h-6 w-6 text-red-400" />
                     </div>
                     <div className="flex-1">
-                        <h3 className="text-lg font-semibold mb-1 text-red-500">
-                            {title}
-                        </h3>
-                        <div className="text-sm text-muted-foreground mb-4">
-                            {description}
-                        </div>
+                        <h3 className="text-lg font-semibold mb-1 text-red-500">{title}</h3>
+                        <div className="text-sm text-muted-foreground mb-4">{description}</div>
                     </div>
                 </div>
                 <div className="flex justify-end gap-2">
                     <Button variant="ghost" onClick={onCancel}>
                         {cancelLabel}
                     </Button>
-                    <Button
-                        variant="destructive"
-                        className="bg-red-500 hover:bg-red-400 dark:bg-red-500 dark:hover:bg-red-400 text-white"
-                        onClick={onConfirm}
-                    >
+                    <Button variant="destructive" className="bg-red-500 hover:bg-red-400 dark:bg-red-500 dark:hover:bg-red-400 text-white" onClick={onConfirm}>
                         {confirmLabel}
                     </Button>
                 </div>

@@ -5,8 +5,7 @@ import { uploadImageToCloudinary } from "@/lib/cloudinary";
 
 // Quy tắc prompt chung: đảm bảo mặt nhân vật không bị cắt trong video.
 // Sử dụng một hướng dẫn rõ ràng (positive) và các từ khóa tránh (negative) để tăng khả năng tuân thủ.
-const FACE_RULE_POSITIVE =
-    "Ensure characters' faces remain fully visible and are not cropped.";
+const FACE_RULE_POSITIVE = "Ensure characters' faces remain fully visible and are not cropped.";
 const FACE_RULE_NEGATIVE = "cropped face, cut-off face, partial face";
 
 export async function POST(request: NextRequest) {
@@ -26,26 +25,16 @@ export async function POST(request: NextRequest) {
         const body = await request.json();
 
         // image_url can be provided directly, or client can send imageBase64 (data URL)
-        let image_url: string | undefined =
-            typeof body?.image_url === "string" && body.image_url.trim() !== ""
-                ? body.image_url.trim()
-                : undefined;
+        let image_url: string | undefined = typeof body?.image_url === "string" && body.image_url.trim() !== "" ? body.image_url.trim() : undefined;
 
         // If imageBase64 present, upload to Cloudinary to get a public URL
-        if (
-            !image_url &&
-            typeof body?.imageBase64 === "string" &&
-            body.imageBase64.startsWith("data:image/")
-        ) {
+        if (!image_url && typeof body?.imageBase64 === "string" && body.imageBase64.startsWith("data:image/")) {
             try {
                 image_url = await uploadImageToCloudinary(body.imageBase64);
                 console.log("Image uploaded to Cloudinary:", image_url);
             } catch (e: any) {
                 console.error("Failed to upload image to Cloudinary:", e);
-                return NextResponse.json(
-                    { error: `Không thể upload ảnh: ${e.message}` },
-                    { status: 500 }
-                );
+                return NextResponse.json({ error: `Không thể upload ảnh: ${e.message}` }, { status: 500 });
             }
         }
 
@@ -73,9 +62,7 @@ export async function POST(request: NextRequest) {
         let prompt = String(body?.prompt || "").trim();
 
         // Track whether the client provided an explicit prompt
-        const clientProvidedPrompt = Boolean(
-            body?.prompt && String(body.prompt).trim() !== ""
-        );
+        const clientProvidedPrompt = Boolean(body?.prompt && String(body.prompt).trim() !== "");
 
         // Require a prompt. The new flow expects the client to call `/api/describe`
         // (or provide a prompt manually) before calling `/api/generate`.
@@ -90,25 +77,15 @@ export async function POST(request: NextRequest) {
 
         // If there's still no prompt (no prompt and no image), return error
         if (!prompt) {
-            return NextResponse.json(
-                { error: "Cần prompt để tạo media" },
-                { status: 400 }
-            );
+            return NextResponse.json({ error: "Cần prompt để tạo media" }, { status: 400 });
         }
 
         // Optional parameters with simple validation
         // Accept only "5" or "10". Default to "10" when missing/invalid to change system default.
         const duration = body?.duration === "5" ? "5" : "10";
-        const negative_prompt =
-            typeof body?.negative_prompt === "string"
-                ? body.negative_prompt
-                : undefined;
-        const cfg_scale =
-            typeof body?.cfg_scale === "number" ? body.cfg_scale : undefined;
-        const callBackUrl =
-            typeof body?.callBackUrl === "string"
-                ? body.callBackUrl
-                : undefined;
+        const negative_prompt = typeof body?.negative_prompt === "string" ? body.negative_prompt : undefined;
+        const cfg_scale = typeof body?.cfg_scale === "number" ? body.cfg_scale : undefined;
+        const callBackUrl = typeof body?.callBackUrl === "string" ? body.callBackUrl : undefined;
 
         // Đảm bảo prompt/negative_prompt bao gồm quy tắc mặt trước khi gọi generateMedia
         let finalPrompt = prompt;
@@ -118,10 +95,7 @@ export async function POST(request: NextRequest) {
 
         let finalNegative = negative_prompt;
         if (typeof finalNegative === "string" && finalNegative.trim() !== "") {
-            if (
-                !finalNegative.includes("cropped face") &&
-                !finalNegative.includes("mặt bị cắt")
-            ) {
+            if (!finalNegative.includes("cropped face") && !finalNegative.includes("mặt bị cắt")) {
                 finalNegative = `${finalNegative}, ${FACE_RULE_NEGATIVE}`;
             }
         } else {
@@ -154,14 +128,8 @@ export async function POST(request: NextRequest) {
         }
 
         // If parsed contains createResp or a KIE response shape, extract code/msg
-        const code =
-            parsed?.code ||
-            parsed?.createResp?.code ||
-            parsed?.createResp?.data?.code;
-        const rawMsg =
-            parsed?.msg ||
-            parsed?.createResp?.msg ||
-            parsed?.createResp?.data?.msg;
+        const code = parsed?.code || parsed?.createResp?.code || parsed?.createResp?.data?.code;
+        const rawMsg = parsed?.msg || parsed?.createResp?.msg || parsed?.createResp?.data?.msg;
 
         // Map known KIE codes to HTTP status and friendly Vietnamese messages
         const kieCodeToHttp: Record<number, number> = {
@@ -189,11 +157,8 @@ export async function POST(request: NextRequest) {
 
         if (typeof code === "number") {
             const status = kieCodeToHttp[code] || 500;
-            const friendlyBase =
-                kieCodeMap[code] || "Lỗi từ dịch vụ bên thứ ba";
-            const friendly = rawMsg
-                ? `${friendlyBase} (${rawMsg})`
-                : friendlyBase;
+            const friendlyBase = kieCodeMap[code] || "Lỗi từ dịch vụ bên thứ ba";
+            const friendly = rawMsg ? `${friendlyBase} (${rawMsg})` : friendlyBase;
             return NextResponse.json(
                 {
                     error: `Lỗi ${code}: ${friendly}`,

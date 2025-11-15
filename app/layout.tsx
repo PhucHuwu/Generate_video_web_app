@@ -10,8 +10,7 @@ const _geistMono = Geist_Mono({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
     title: "Chatbot tạo video từ ảnh",
-    description:
-        "Chatbot tạo video từ ảnh và mô tả văn bản (prompt). Nhập mô tả để tạo video tự động.",
+    description: "Chatbot tạo video từ ảnh và mô tả văn bản (prompt). Nhập mô tả để tạo video tự động.",
     icons: {
         icon: [
             {

@@ -20,18 +20,14 @@ export interface ImageUploadResponse {
     timestamp: string;
 }
 
-export async function handleChatMessage(
-    request: ChatRequest
-): Promise<ChatResponse> {
+export async function handleChatMessage(request: ChatRequest): Promise<ChatResponse> {
     return {
         message: request.message,
         timestamp: new Date().toISOString(),
     };
 }
 
-export async function handleImageUpload(
-    request: ImageUploadRequest
-): Promise<ImageUploadResponse> {
+export async function handleImageUpload(request: ImageUploadRequest): Promise<ImageUploadResponse> {
     // Get base64 data size (approximate file size)
     const base64Size = Math.ceil((request.imageBase64.length * 3) / 4);
 

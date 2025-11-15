@@ -33,21 +33,12 @@ export async function POST(request: Request) {
             return res;
         }
 
-        return NextResponse.json(
-            { ok: false, message: "Invalid username or password" },
-            { status: 401 }
-        );
+        return NextResponse.json({ ok: false, message: "Invalid username or password" }, { status: 401 });
     } catch (err) {
-        return NextResponse.json(
-            { ok: false, message: "Bad request" },
-            { status: 400 }
-        );
+        return NextResponse.json({ ok: false, message: "Bad request" }, { status: 400 });
     }
 }
 
 export async function GET() {
-    return NextResponse.json(
-        { message: "Method not allowed" },
-        { status: 405 }
-    );
+    return NextResponse.json({ message: "Method not allowed" }, { status: 405 });
 }

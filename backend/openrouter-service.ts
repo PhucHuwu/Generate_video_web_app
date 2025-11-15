@@ -5,27 +5,18 @@
  */
 import DESCRIBE_IMAGE_PROMPT from "./describe-prompt";
 
-export async function callOpenRouterFallback(
-    imageUrl: string,
-    promptText?: string,
-    openrouterApiKeyOverride?: string
-): Promise<{ text: string }> {
-    const openrouterApiKey =
-        openrouterApiKeyOverride || process.env.OPENROUTER_API_KEY;
+export async function callOpenRouterFallback(imageUrl: string, promptText?: string, openrouterApiKeyOverride?: string): Promise<{ text: string }> {
+    const openrouterApiKey = openrouterApiKeyOverride || process.env.OPENROUTER_API_KEY;
     if (!openrouterApiKey) {
-        throw new Error(
-            "OpenRouter API key not configured. Set OPENROUTER_API_KEY in env or provide override to enable fallback."
-        );
+        throw new Error("OpenRouter API key not configured. Set OPENROUTER_API_KEY in env or provide override to enable fallback.");
     }
 
-    const openrouterModel =
-        process.env.OPENROUTER_MODEL || "nvidia/nemotron-nano-12b-v2-vl:free";
+    const openrouterModel = process.env.OPENROUTER_MODEL || "nvidia/nemotron-nano-12b-v2-vl:free";
     const siteUrl = process.env.OPENROUTER_SITE_URL; // optional
     const siteName = process.env.OPENROUTER_SITE_NAME; // optional
 
     // Prefer provided promptText, otherwise use shared Gemini prompt
-    const promptToUse =
-        (promptText && String(promptText).trim()) || DESCRIBE_IMAGE_PROMPT;
+    const promptToUse = (promptText && String(promptText).trim()) || DESCRIBE_IMAGE_PROMPT;
 
     // Use structured message content so OpenRouter receives an image input
     const body = {
@@ -63,9 +54,7 @@ export async function callOpenRouterFallback(
 
     const data = await res.json().catch(() => null);
     if (!res.ok) {
-        const errStr = data
-            ? JSON.stringify(data)
-            : `${res.status} ${res.statusText}`;
+        const errStr = data ? JSON.stringify(data) : `${res.status} ${res.statusText}`;
         throw new Error(`OpenRouter fallback failed: ${errStr}`);
     }
 
@@ -97,8 +86,7 @@ export async function callOpenRouterFallback(
                 }
             }
             if (!text && typeof ch.text === "string") text = ch.text;
-            if (!text && ch.delta && typeof ch.delta.content === "string")
-                text = ch.delta.content;
+            if (!text && ch.delta && typeof ch.delta.content === "string") text = ch.delta.content;
         }
         // fallback for other shapes
         if (!text && typeof data.output === "string") text = data.output;

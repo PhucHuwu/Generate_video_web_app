@@ -24,16 +24,10 @@ const API_KEY = process.env.KIE_API_KEY || "";
 
 if (!API_KEY) {
     // don't throw here — route will return helpful error. But log to help debug.
-    console.warn(
-        "KIE_API_KEY is not set. generate-service will fail until configured."
-    );
+    console.warn("KIE_API_KEY is not set. generate-service will fail until configured.");
 }
 
-export async function createTask(
-    model: string,
-    input: any,
-    callBackUrl?: string
-) {
+export async function createTask(model: string, input: any, callBackUrl?: string) {
     const body: any = { model, input };
     if (callBackUrl) body.callBackUrl = callBackUrl;
 
@@ -114,16 +108,12 @@ export async function generateMedia(
     // Disallow missing prompt here. The application flow now requires the client to
     // generate a prompt first (via `/api/describe`) or provide one manually.
     if (!input.image_url) {
-        throw new Error(
-            "Dịch vụ chỉ hỗ trợ tạo video từ ảnh hoặc ảnh+kèm prompt. Trường hợp chỉ nhập prompt không được hỗ trợ."
-        );
+        throw new Error("Dịch vụ chỉ hỗ trợ tạo video từ ảnh hoặc ảnh+kèm prompt. Trường hợp chỉ nhập prompt không được hỗ trợ.");
     }
 
     // Defensive check: KIE only accepts https image URLs. Reject non-https inputs early.
     if (input.image_url && !/^https:\/\//i.test(input.image_url)) {
-        throw new Error(
-            "KIE chỉ chấp nhận image_url bắt đầu bằng https://. Vui lòng cung cấp URL công khai (https) hoặc gửi imageBase64 để upload."
-        );
+        throw new Error("KIE chỉ chấp nhận image_url bắt đầu bằng https://. Vui lòng cung cấp URL công khai (https) hoặc gửi imageBase64 để upload.");
     }
 
     const { pollIntervalMs = 2000, maxAttempts = 30 } = opts;
@@ -132,22 +122,17 @@ export async function generateMedia(
     // (image -> Gemini -> Groq) and sending it with the request. This prevents the
     // server from implicitly calling Gemini/Groq during generation.
     if (typeof input.prompt !== "string" || input.prompt.trim() === "") {
-        throw new Error(
-            "Cần prompt để tạo media. Vui lòng nhấn 'Gen Prompt' để tự động sinh prompt từ ảnh hoặc nhập mô tả thủ công."
-        );
+        throw new Error("Cần prompt để tạo media. Vui lòng nhấn 'Gen Prompt' để tự động sinh prompt từ ảnh hoặc nhập mô tả thủ công.");
     }
 
     // choose model based on presence of image_url
-    const model = input.image_url
-        ? "kling/v2-5-turbo-image-to-video-pro"
-        : "kling/v2-5-turbo-text-to-video-pro";
+    const model = input.image_url ? "kling/v2-5-turbo-image-to-video-pro" : "kling/v2-5-turbo-text-to-video-pro";
 
     const createPayload: any = {
         prompt: input.prompt,
         // Use default 10 seconds when not provided. Keep explicit "5" if requested.
         duration: input.duration ?? "10",
-        negative_prompt:
-            input.negative_prompt ?? "blur, distort, and low quality",
+        negative_prompt: input.negative_prompt ?? "blur, distort, and low quality",
         cfg_scale: typeof input.cfg_scale === "number" ? input.cfg_scale : 0.5,
     };
 
@@ -164,26 +149,15 @@ export async function generateMedia(
         const msg = String(err?.message || err);
         // If KIE returns 503 (service unavailable / model overloaded), fallback to a lighter Gemini model
         if (msg.includes("503") || /unavailab/i.test(msg)) {
-            console.warn(
-                "createTask failed with 503/unavailable — falling back to gemini-2.0-flash-lite",
-                { err: msg }
-            );
+            console.warn("createTask failed with 503/unavailable — falling back to gemini-2.0-flash-lite", { err: msg });
             const fallbackModel = "gemini-2.0-flash-lite";
-            createResp = await createTask(
-                fallbackModel,
-                createPayload,
-                opts.callBackUrl
-            );
+            createResp = await createTask(fallbackModel, createPayload, opts.callBackUrl);
         } else {
             throw err;
         }
     }
     // Support a few possible response shapes and log response if missing
-    const taskId =
-        createResp?.data?.taskId ||
-        createResp?.taskId ||
-        createResp?.data?.id ||
-        createResp?.id;
+    const taskId = createResp?.data?.taskId || createResp?.taskId || createResp?.data?.id || createResp?.id;
     if (!taskId) {
         console.error("createTask returned no taskId", { createResp });
         // include summarized response in the error to help debugging caller
@@ -193,9 +167,7 @@ export async function generateMedia(
         } catch (e) {
             summary = String(createResp);
         }
-        throw new Error(
-            `No taskId returned from createTask; response: ${summary}`
-        );
+        throw new Error(`No taskId returned from createTask; response: ${summary}`);
     }
 
     // Poll with initial fast interval
@@ -238,9 +210,7 @@ export async function generateMedia(
 
     // Fast polling timeout - switch to extended polling with longer interval
     // Poll thêm 20 lần với interval 5s (tổng thêm ~100s) để đảm bảo lấy được kết quả cuối cùng
-    console.log(
-        `Task ${taskId}: Fast polling timeout, switching to extended polling...`
-    );
+    console.log(`Task ${taskId}: Fast polling timeout, switching to extended polling...`);
     const extendedPollInterval = 5000; // 5 giây
     const extendedMaxAttempts = 20; // thêm 20 lần nữa
 
@@ -282,9 +252,7 @@ export async function generateMedia(
     }
 
     // Sau extended polling vẫn chưa xong -> trả về fail với message rõ ràng
-    console.error(
-        `Task ${taskId}: Extended polling timeout - task không hoàn thành sau ~160s`
-    );
+    console.error(`Task ${taskId}: Extended polling timeout - task không hoàn thành sau ~160s`);
     const lastInfo = await getRecordInfo(taskId).catch(() => null);
     return {
         taskId,

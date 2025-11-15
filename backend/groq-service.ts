@@ -8,9 +8,7 @@ import { Groq } from "groq-sdk";
 export async function sendToGroq(inputText: string, apiKeyOverride?: string) {
     const apiKey = apiKeyOverride || process.env.GROQ_API_KEY;
     if (!apiKey) {
-        throw new Error(
-            "GROQ_API_KEY not configured in env or provided as override"
-        );
+        throw new Error("GROQ_API_KEY not configured in env or provided as override");
     }
 
     const groq = new Groq({ apiKey });

@@ -5,16 +5,7 @@ import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import {
-    Send,
-    Upload,
-    Sun,
-    Moon,
-    Settings,
-    Trash,
-    Sparkles,
-    Download,
-} from "lucide-react";
+import { Send, Upload, Sun, Moon, Settings, Trash, Sparkles, Download } from "lucide-react";
 import { useTheme } from "@/components/theme-toggle-provider";
 import NativeConfirm from "@/components/ui/native-confirm";
 
@@ -100,8 +91,7 @@ export function ChatContainer() {
             }
 
             if (!res.ok) {
-                const msg =
-                    parsed?.msg || parsed?.error || txt || `HTTP ${res.status}`;
+                const msg = parsed?.msg || parsed?.error || txt || `HTTP ${res.status}`;
                 setCredits(null);
                 setCreditsError(String(msg));
                 return;
@@ -109,8 +99,7 @@ export function ChatContainer() {
 
             // Expected shape: { code: 200, msg: 'success', data: 100 }
             const dataVal = parsed?.data ?? parsed;
-            const value =
-                typeof dataVal === "number" ? dataVal : Number(dataVal);
+            const value = typeof dataVal === "number" ? dataVal : Number(dataVal);
             if (!Number.isFinite(value)) {
                 setCredits(null);
                 setCreditsError("Không đọc được số dư");
@@ -207,15 +196,11 @@ export function ChatContainer() {
                 if (Array.isArray(parsed)) {
                     const restored: Message[] = parsed.map((m) => ({
                         ...m,
-                        timestamp: m.timestamp
-                            ? new Date(m.timestamp)
-                            : new Date(),
+                        timestamp: m.timestamp ? new Date(m.timestamp) : new Date(),
                     }));
                     setMessages(restored);
                 } else {
-                    console.warn(
-                        "Invalid chat history format (not an array), clearing storage"
-                    );
+                    console.warn("Invalid chat history format (not an array), clearing storage");
                     localStorage.removeItem(STORAGE_KEY);
                 }
             }
@@ -246,10 +231,7 @@ export function ChatContainer() {
         try {
             const toSave = messages.map((m) => ({
                 ...m,
-                timestamp:
-                    m.timestamp instanceof Date
-                        ? m.timestamp.toISOString()
-                        : m.timestamp,
+                timestamp: m.timestamp instanceof Date ? m.timestamp.toISOString() : m.timestamp,
             }));
             localStorage.setItem(STORAGE_KEY, JSON.stringify(toSave));
         } catch (e) {
@@ -261,16 +243,12 @@ export function ChatContainer() {
         e.preventDefault();
         // Require an image and a prompt for all requests; disallow prompt-only submissions
         if (!uploadedImage) {
-            alert(
-                "Vui lòng chọn ảnh (bắt buộc). Trường hợp chỉ nhập prompt không được hỗ trợ."
-            );
+            alert("Vui lòng chọn ảnh (bắt buộc). Trường hợp chỉ nhập prompt không được hỗ trợ.");
             return;
         }
 
         if (!input || input.trim() === "") {
-            alert(
-                "Vui lòng tạo hoặc nhập mô tả trước khi bắt đầu tạo video. Nhấn 'Gen Prompt' để sinh mô tả từ ảnh."
-            );
+            alert("Vui lòng tạo hoặc nhập mô tả trước khi bắt đầu tạo video. Nhấn 'Gen Prompt' để sinh mô tả từ ảnh.");
             return;
         }
 
@@ -311,10 +289,8 @@ export function ChatContainer() {
                 body.fileName = imageToSend.fileName;
             }
             // Include optional API key overrides from settings (if set)
-            if (settings.googleApiKey)
-                body.googleApiKey = settings.googleApiKey;
-            if (settings.openrouterApiKey)
-                body.openrouterApiKey = settings.openrouterApiKey;
+            if (settings.googleApiKey) body.googleApiKey = settings.googleApiKey;
+            if (settings.openrouterApiKey) body.openrouterApiKey = settings.openrouterApiKey;
             if (settings.groqApiKey) body.groqApiKey = settings.groqApiKey;
 
             const response = await fetch("/api/generate", {
@@ -335,17 +311,8 @@ export function ChatContainer() {
                 }
 
                 // Extract possible KIE code and message from known shapes
-                const code =
-                    parsed?.code ||
-                    parsed?.createResp?.code ||
-                    parsed?.raw?.code ||
-                    parsed?.data?.code;
-                const rawMsg =
-                    parsed?.error ||
-                    parsed?.msg ||
-                    parsed?.createResp?.msg ||
-                    parsed?.raw?.msg ||
-                    friendlyRaw;
+                const code = parsed?.code || parsed?.createResp?.code || parsed?.raw?.code || parsed?.data?.code;
+                const rawMsg = parsed?.error || parsed?.msg || parsed?.createResp?.msg || parsed?.raw?.msg || friendlyRaw;
 
                 // Map known KIE status codes to friendly Vietnamese messages
                 const kieCodeMap: Record<number, string> = {
@@ -360,26 +327,16 @@ export function ChatContainer() {
                 };
 
                 let friendly = String(rawMsg);
-                if (
-                    parsed &&
-                    typeof parsed.error === "string" &&
-                    parsed.error.trim().startsWith("Lỗi")
-                ) {
+                if (parsed && typeof parsed.error === "string" && parsed.error.trim().startsWith("Lỗi")) {
                     // The server already returned a localized 'Lỗi ...' message — use it verbatim
                     friendly = parsed.error;
                 } else if (typeof code === "number" && kieCodeMap[code]) {
-                    friendly =
-                        `Lỗi ${code}: ${kieCodeMap[code]}` +
-                        (rawMsg ? ` (${rawMsg})` : "");
+                    friendly = `Lỗi ${code}: ${kieCodeMap[code]}` + (rawMsg ? ` (${rawMsg})` : "");
                 } else if (parsed && (parsed.error || parsed.msg)) {
                     friendly = parsed.error || parsed.msg;
                 }
 
-                const botText =
-                    typeof friendly === "string" &&
-                    friendly.trim().startsWith("Lỗi")
-                        ? friendly
-                        : `Lỗi: ${friendly}`;
+                const botText = typeof friendly === "string" && friendly.trim().startsWith("Lỗi") ? friendly : `Lỗi: ${friendly}`;
 
                 const botMessage: Message = {
                     id: (Date.now() + 2).toString(),
@@ -395,8 +352,7 @@ export function ChatContainer() {
             const data = await response.json();
 
             // If backend returned Gemini/Groq outputs, prepare a 'thinking' block
-            const thinkingDescription =
-                data?.description || data?.geminiDescription || undefined;
+            const thinkingDescription = data?.description || data?.geminiDescription || undefined;
             const thinkingGroq = data?.groqOutput || undefined;
 
             // If the server already returned resultUrls, show immediately
@@ -451,69 +407,36 @@ export function ChatContainer() {
                     const intervalMs = 3000;
                     for (let i = 0; i < maxChecks; i++) {
                         try {
-                            const statusRes = await fetch(
-                                `/api/generate/status?taskId=${encodeURIComponent(
-                                    data.taskId
-                                )}`
-                            );
+                            const statusRes = await fetch(`/api/generate/status?taskId=${encodeURIComponent(data.taskId)}`);
                             if (!statusRes.ok) {
                                 // if server returns 4xx/5xx, break or continue depending on needs; here we'll continue
-                                await new Promise((r) =>
-                                    setTimeout(r, intervalMs)
-                                );
+                                await new Promise((r) => setTimeout(r, intervalMs));
                                 continue;
                             }
                             const statusData = await statusRes.json();
-                            console.debug(
-                                "/api/generate/status returned",
-                                statusData
-                            );
+                            console.debug("/api/generate/status returned", statusData);
                             // Robust extraction of resultUrls from several response shapes
-                            function extractResultUrls(
-                                obj: any
-                            ): string[] | undefined {
+                            function extractResultUrls(obj: any): string[] | undefined {
                                 if (!obj) return undefined;
-                                if (
-                                    Array.isArray(obj.resultUrls) &&
-                                    obj.resultUrls.length
-                                )
-                                    return obj.resultUrls;
+                                if (Array.isArray(obj.resultUrls) && obj.resultUrls.length) return obj.resultUrls;
                                 try {
                                     const rj = obj?.raw?.data?.resultJson;
                                     if (rj) {
-                                        const parsed =
-                                            typeof rj === "string"
-                                                ? JSON.parse(rj)
-                                                : rj;
-                                        if (
-                                            Array.isArray(parsed?.resultUrls) &&
-                                            parsed.resultUrls.length
-                                        )
-                                            return parsed.resultUrls;
+                                        const parsed = typeof rj === "string" ? JSON.parse(rj) : rj;
+                                        if (Array.isArray(parsed?.resultUrls) && parsed.resultUrls.length) return parsed.resultUrls;
                                     }
                                 } catch (e) {
                                     // ignore
                                 }
-                                if (
-                                    Array.isArray(obj?.raw?.resultUrls) &&
-                                    obj.raw.resultUrls.length
-                                )
-                                    return obj.raw.resultUrls;
-                                if (
-                                    Array.isArray(obj?.data?.resultUrls) &&
-                                    obj.data.resultUrls.length
-                                )
-                                    return obj.data.resultUrls;
+                                if (Array.isArray(obj?.raw?.resultUrls) && obj.raw.resultUrls.length) return obj.raw.resultUrls;
+                                if (Array.isArray(obj?.data?.resultUrls) && obj.data.resultUrls.length) return obj.data.resultUrls;
                                 return undefined;
                             }
 
                             const resultUrls = extractResultUrls(statusData);
 
                             // If we have resultUrls, consider it a success regardless of state
-                            if (
-                                Array.isArray(resultUrls) &&
-                                resultUrls.length > 0
-                            ) {
+                            if (Array.isArray(resultUrls) && resultUrls.length > 0) {
                                 const videoUrl = resultUrls[0];
                                 const finishedMessage: Message = {
                                     id: (Date.now() + 2).toString(),
@@ -522,13 +445,10 @@ export function ChatContainer() {
                                     sender: "bot",
                                     timestamp: new Date(),
                                     thinking:
-                                        statusData?.geminiDescription ||
-                                        statusData?.groqOutput
+                                        statusData?.geminiDescription || statusData?.groqOutput
                                             ? {
-                                                  description:
-                                                      statusData?.geminiDescription,
-                                                  groqOutput:
-                                                      statusData?.groqOutput,
+                                                  description: statusData?.geminiDescription,
+                                                  groqOutput: statusData?.groqOutput,
                                                   // collapse thinking when finished
                                                   collapsed: true,
                                               }
@@ -539,15 +459,8 @@ export function ChatContainer() {
 
                                 // Replace processing message with result (preserve thinking collapsed) or append if processing message was not found
                                 setMessages((prev) => {
-                                    const found = prev.some(
-                                        (m) => m.id === tempId
-                                    );
-                                    if (found)
-                                        return prev.map((m) =>
-                                            m.id === tempId
-                                                ? finishedMessage
-                                                : m
-                                        );
+                                    const found = prev.some((m) => m.id === tempId);
+                                    if (found) return prev.map((m) => (m.id === tempId ? finishedMessage : m));
                                     return [...prev, finishedMessage];
                                 });
                                 setIsProcessing(false);
@@ -555,10 +468,7 @@ export function ChatContainer() {
                             }
 
                             // If provider reports a failure, surface the fail message to the user and stop polling
-                            if (
-                                statusData?.state === "fail" ||
-                                statusData?.state === "failed"
-                            ) {
+                            if (statusData?.state === "fail" || statusData?.state === "failed") {
                                 const failMsg =
                                     statusData?.raw?.data?.failMsg ||
                                     statusData?.failMsg ||
@@ -571,13 +481,10 @@ export function ChatContainer() {
                                     sender: "bot",
                                     timestamp: new Date(),
                                     thinking:
-                                        statusData?.geminiDescription ||
-                                        statusData?.groqOutput
+                                        statusData?.geminiDescription || statusData?.groqOutput
                                             ? {
-                                                  description:
-                                                      statusData?.geminiDescription,
-                                                  groqOutput:
-                                                      statusData?.groqOutput,
+                                                  description: statusData?.geminiDescription,
+                                                  groqOutput: statusData?.groqOutput,
                                                   collapsed: true,
                                               }
                                             : undefined,
@@ -587,13 +494,8 @@ export function ChatContainer() {
 
                                 // Replace processing message with failure message (append if not found)
                                 setMessages((prev) => {
-                                    const found = prev.some(
-                                        (m) => m.id === tempId
-                                    );
-                                    if (found)
-                                        return prev.map((m) =>
-                                            m.id === tempId ? failMessage : m
-                                        );
+                                    const found = prev.some((m) => m.id === tempId);
+                                    if (found) return prev.map((m) => (m.id === tempId ? failMessage : m));
                                     return [...prev, failMessage];
                                 });
                                 setIsProcessing(false);
@@ -625,60 +527,30 @@ export function ChatContainer() {
                     const extendedIntervalMs = 5000;
                     for (let i = 0; i < extendedMaxChecks; i++) {
                         try {
-                            const statusRes = await fetch(
-                                `/api/generate/status?taskId=${encodeURIComponent(
-                                    data.taskId
-                                )}`
-                            );
+                            const statusRes = await fetch(`/api/generate/status?taskId=${encodeURIComponent(data.taskId)}`);
                             if (!statusRes.ok) {
-                                await new Promise((r) =>
-                                    setTimeout(r, extendedIntervalMs)
-                                );
+                                await new Promise((r) => setTimeout(r, extendedIntervalMs));
                                 continue;
                             }
                             const statusData = await statusRes.json();
-                            function extractResultUrls(
-                                obj: any
-                            ): string[] | undefined {
+                            function extractResultUrls(obj: any): string[] | undefined {
                                 if (!obj) return undefined;
-                                if (
-                                    Array.isArray(obj.resultUrls) &&
-                                    obj.resultUrls.length
-                                )
-                                    return obj.resultUrls;
+                                if (Array.isArray(obj.resultUrls) && obj.resultUrls.length) return obj.resultUrls;
                                 try {
                                     const rj = obj?.raw?.data?.resultJson;
                                     if (rj) {
-                                        const parsed =
-                                            typeof rj === "string"
-                                                ? JSON.parse(rj)
-                                                : rj;
-                                        if (
-                                            Array.isArray(parsed?.resultUrls) &&
-                                            parsed.resultUrls.length
-                                        )
-                                            return parsed.resultUrls;
+                                        const parsed = typeof rj === "string" ? JSON.parse(rj) : rj;
+                                        if (Array.isArray(parsed?.resultUrls) && parsed.resultUrls.length) return parsed.resultUrls;
                                     }
                                 } catch (e) {}
-                                if (
-                                    Array.isArray(obj?.raw?.resultUrls) &&
-                                    obj.raw.resultUrls.length
-                                )
-                                    return obj.raw.resultUrls;
-                                if (
-                                    Array.isArray(obj?.data?.resultUrls) &&
-                                    obj.data.resultUrls.length
-                                )
-                                    return obj.data.resultUrls;
+                                if (Array.isArray(obj?.raw?.resultUrls) && obj.raw.resultUrls.length) return obj.raw.resultUrls;
+                                if (Array.isArray(obj?.data?.resultUrls) && obj.data.resultUrls.length) return obj.data.resultUrls;
                                 return undefined;
                             }
 
                             const resultUrls = extractResultUrls(statusData);
 
-                            if (
-                                Array.isArray(resultUrls) &&
-                                resultUrls.length > 0
-                            ) {
+                            if (Array.isArray(resultUrls) && resultUrls.length > 0) {
                                 const videoUrl = resultUrls[0];
                                 const finishedMessage: Message = {
                                     id: (Date.now() + 2).toString(),
@@ -689,25 +561,15 @@ export function ChatContainer() {
                                 };
 
                                 setMessages((prev) => {
-                                    const found = prev.some(
-                                        (m) => m.id === tempId
-                                    );
-                                    if (found)
-                                        return prev.map((m) =>
-                                            m.id === tempId
-                                                ? finishedMessage
-                                                : m
-                                        );
+                                    const found = prev.some((m) => m.id === tempId);
+                                    if (found) return prev.map((m) => (m.id === tempId ? finishedMessage : m));
                                     return [...prev, finishedMessage];
                                 });
                                 setIsProcessing(false);
                                 return;
                             }
 
-                            if (
-                                statusData?.state === "fail" ||
-                                statusData?.state === "failed"
-                            ) {
+                            if (statusData?.state === "fail" || statusData?.state === "failed") {
                                 const failMsg =
                                     statusData?.raw?.data?.failMsg ||
                                     statusData?.failMsg ||
@@ -722,22 +584,15 @@ export function ChatContainer() {
                                 };
 
                                 setMessages((prev) => {
-                                    const found = prev.some(
-                                        (m) => m.id === tempId
-                                    );
-                                    if (found)
-                                        return prev.map((m) =>
-                                            m.id === tempId ? failMessage : m
-                                        );
+                                    const found = prev.some((m) => m.id === tempId);
+                                    if (found) return prev.map((m) => (m.id === tempId ? failMessage : m));
                                     return [...prev, failMessage];
                                 });
                                 setIsProcessing(false);
                                 return;
                             }
                         } catch (err) {}
-                        await new Promise((r) =>
-                            setTimeout(r, extendedIntervalMs)
-                        );
+                        await new Promise((r) => setTimeout(r, extendedIntervalMs));
                     }
 
                     // Final timeout after extended polling
@@ -772,9 +627,7 @@ export function ChatContainer() {
             }
         } catch (error: any) {
             console.error("Error sending message:", error);
-            let friendly =
-                (error && error.message) ||
-                "Không nhận được phản hồi từ dịch vụ.";
+            let friendly = (error && error.message) || "Không nhận được phản hồi từ dịch vụ.";
 
             // If the error message contains a JSON response, try to extract code/msg
             try {
@@ -782,11 +635,7 @@ export function ChatContainer() {
                 if (jsonMatch) {
                     const parsed = JSON.parse(jsonMatch[1]);
                     const code = parsed?.code || parsed?.createResp?.code;
-                    const rawMsg =
-                        parsed?.msg ||
-                        parsed?.error ||
-                        parsed?.createResp?.msg ||
-                        parsed?.raw?.msg;
+                    const rawMsg = parsed?.msg || parsed?.error || parsed?.createResp?.msg || parsed?.raw?.msg;
                     const kieCodeMap: Record<number, string> = {
                         401: "Không xác thực — kiểm tra thông tin đăng nhập hoặc API key.",
                         402: "Không đủ credits — vui lòng nạp thêm để tiếp tục sử dụng.",
@@ -798,9 +647,7 @@ export function ChatContainer() {
                         505: "Tính năng hiện đang tắt — tính năng này không khả dụng.",
                     };
                     if (typeof code === "number" && kieCodeMap[code]) {
-                        friendly =
-                            `Lỗi ${code}: ${kieCodeMap[code]}` +
-                            (rawMsg ? ` (${rawMsg})` : "");
+                        friendly = `Lỗi ${code}: ${kieCodeMap[code]}` + (rawMsg ? ` (${rawMsg})` : "");
                     } else if (rawMsg) {
                         friendly = String(rawMsg);
                     }
@@ -821,9 +668,7 @@ export function ChatContainer() {
         }
     };
 
-    const handleImageUpload = async (
-        e: React.ChangeEvent<HTMLInputElement>
-    ) => {
+    const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (!file) return;
 
@@ -920,9 +765,7 @@ export function ChatContainer() {
             setIsLogoutConfirmOpen(false);
             try {
                 // fallback simple notification
-                alert(
-                    "Không thể đăng xuất khi đang tạo video. Vui lòng đợi quá trình hoàn tất."
-                );
+                alert("Không thể đăng xuất khi đang tạo video. Vui lòng đợi quá trình hoàn tất.");
             } catch (e) {}
             return;
         }
@@ -949,12 +792,8 @@ export function ChatContainer() {
             <header className="border-b border-border bg-card p-4">
                 <div className="max-w-4xl mx-auto flex items-center justify-between">
                     <div>
-                        <h1 className="text-2xl font-bold text-foreground">
-                            Chatbot tạo video
-                        </h1>
-                        <p className="text-sm text-muted-foreground">
-                            Tạo video từ mô tả văn bản và ảnh
-                        </p>
+                        <h1 className="text-2xl font-bold text-foreground">Chatbot tạo video</h1>
+                        <p className="text-sm text-muted-foreground">Tạo video từ mô tả văn bản và ảnh</p>
                     </div>
                     <div>
                         <div className="flex items-center gap-2">
@@ -963,11 +802,7 @@ export function ChatContainer() {
                                 variant="ghost"
                                 onClick={fetchCredits}
                                 disabled={isFetchingCredits}
-                                title={
-                                    creditsError
-                                        ? `Lỗi: ${creditsError}`
-                                        : "Lấy số dư hiện tại"
-                                }
+                                title={creditsError ? `Lỗi: ${creditsError}` : "Lấy số dư hiện tại"}
                             >
                                 <span className="text-sm">
                                     {isFetchingCredits ? (
@@ -987,35 +822,18 @@ export function ChatContainer() {
                                 size="sm"
                                 variant="ghost"
                                 onClick={toggleTheme}
-                                title={
-                                    theme === "light"
-                                        ? "Chuyển sang chế độ tối"
-                                        : "Chuyển sang chế độ sáng"
-                                }
+                                title={theme === "light" ? "Chuyển sang chế độ tối" : "Chuyển sang chế độ sáng"}
                             >
-                                {theme === "light" ? (
-                                    <Moon className="h-4 w-4" />
-                                ) : (
-                                    <Sun className="h-4 w-4" />
-                                )}
+                                {theme === "light" ? <Moon className="h-4 w-4" /> : <Sun className="h-4 w-4" />}
                             </Button>
-                            <Button
-                                size="sm"
-                                variant="ghost"
-                                onClick={() => setIsSettingsOpen(true)}
-                                title="Cài đặt API Keys"
-                            >
+                            <Button size="sm" variant="ghost" onClick={() => setIsSettingsOpen(true)} title="Cài đặt API Keys">
                                 <Settings className="h-4 w-4" />
                             </Button>
                             <Button
                                 size="sm"
                                 variant="ghost"
                                 onClick={clearHistory}
-                                disabled={
-                                    messages.length === 0 ||
-                                    isLoading ||
-                                    isProcessing
-                                }
+                                disabled={messages.length === 0 || isLoading || isProcessing}
                                 title="Xóa lịch sử chat"
                             >
                                 <Trash className="h-4 w-4" />
@@ -1025,11 +843,7 @@ export function ChatContainer() {
                                 variant="ghost"
                                 onClick={() => setIsLogoutConfirmOpen(true)}
                                 disabled={isLoading || isProcessing}
-                                title={
-                                    isLoading || isProcessing
-                                        ? "Không thể đăng xuất khi đang tạo video"
-                                        : undefined
-                                }
+                                title={isLoading || isProcessing ? "Không thể đăng xuất khi đang tạo video" : undefined}
                             >
                                 Đăng xuất
                             </Button>
@@ -1044,21 +858,15 @@ export function ChatContainer() {
                     {isClient && messages.length === 0 && (
                         <div className="flex flex-col items-center justify-center h-full pt-20 text-center">
                             <div className="text-muted-foreground space-y-2">
-                                <p className="text-lg font-medium">
-                                    Chào mừng đến với Chatbot tạo video
-                                </p>
-                                <p className="text-sm">
-                                    Nhập mô tả để bắt đầu tạo video
-                                </p>
+                                <p className="text-lg font-medium">Chào mừng đến với Chatbot tạo video</p>
+                                <p className="text-sm">Nhập mô tả để bắt đầu tạo video</p>
                             </div>
                         </div>
                     )}
 
                     {messages.map((message) => {
                         const isUser = message.sender === "user";
-                        const containerJustify = isUser
-                            ? "justify-end"
-                            : "justify-start";
+                        const containerJustify = isUser ? "justify-end" : "justify-start";
                         const bubbleClass = isUser
                             ? "bg-primary text-primary-foreground rounded-br-none"
                             : "bg-card border border-border text-foreground rounded-bl-none";
@@ -1066,48 +874,31 @@ export function ChatContainer() {
                         // If user message contains both image and text, render two separate bubbles (stacked vertically)
                         if (isUser && message.image && message.text) {
                             return (
-                                <div
-                                    key={message.id}
-                                    className={`flex ${containerJustify}`}
-                                >
+                                <div key={message.id} className={`flex ${containerJustify}`}>
                                     <div className="max-w-xs lg:max-w-md flex flex-col items-end gap-2">
                                         {/* Image bubble */}
-                                        <div
-                                            className={`px-4 py-2 rounded-lg ${bubbleClass}`}
-                                        >
+                                        <div className={`px-4 py-2 rounded-lg ${bubbleClass}`}>
                                             <div className="mb-2">
                                                 <img
-                                                    src={
-                                                        message.image.src ||
-                                                        "/placeholder.svg"
-                                                    }
+                                                    src={message.image.src || "/placeholder.svg"}
                                                     alt={message.image.fileName}
                                                     className="rounded max-w-[200px] h-auto"
                                                 />
-                                                <p className="text-xs mt-1 opacity-70">
-                                                    {message.image.fileName}
-                                                </p>
+                                                <p className="text-xs mt-1 opacity-70">{message.image.fileName}</p>
                                             </div>
                                         </div>
 
                                         {/* Text bubble */}
-                                        <div
-                                            className={`px-4 py-2 rounded-lg ${bubbleClass}`}
-                                        >
+                                        <div className={`px-4 py-2 rounded-lg ${bubbleClass}`}>
                                             <p className="break-words">
                                                 {message.text}
-                                                {message.processing && (
-                                                    <AnimatedEllipsis />
-                                                )}
+                                                {message.processing && <AnimatedEllipsis />}
                                             </p>
                                             <p className="text-xs mt-1 opacity-70">
-                                                {message.timestamp.toLocaleTimeString(
-                                                    [],
-                                                    {
-                                                        hour: "2-digit",
-                                                        minute: "2-digit",
-                                                    }
-                                                )}
+                                                {message.timestamp.toLocaleTimeString([], {
+                                                    hour: "2-digit",
+                                                    minute: "2-digit",
+                                                })}
                                             </p>
                                         </div>
                                     </div>
@@ -1117,81 +908,38 @@ export function ChatContainer() {
 
                         // Default rendering (single bubble) for other cases
                         return (
-                            <div
-                                key={message.id}
-                                className={`flex ${containerJustify}`}
-                            >
-                                <div
-                                    className={`max-w-xs lg:max-w-md px-4 py-2 rounded-lg ${bubbleClass}`}
-                                >
+                            <div key={message.id} className={`flex ${containerJustify}`}>
+                                <div className={`max-w-xs lg:max-w-md px-4 py-2 rounded-lg ${bubbleClass}`}>
                                     {message.image && (
                                         <div className="mb-2">
                                             <img
-                                                src={
-                                                    message.image.src ||
-                                                    "/placeholder.svg"
-                                                }
+                                                src={message.image.src || "/placeholder.svg"}
                                                 alt={message.image.fileName}
                                                 className="rounded max-w-[200px] h-auto"
                                             />
-                                            <p className="text-xs mt-1 opacity-70">
-                                                {message.image.fileName}
-                                            </p>
+                                            <p className="text-xs mt-1 opacity-70">{message.image.fileName}</p>
                                         </div>
                                     )}
                                     {message.thinking && (
                                         <div className="mb-2 border rounded px-3 py-2 bg-muted/5">
                                             <div className="flex items-center justify-between">
-                                                <div className="text-sm font-medium">
-                                                    Đang suy nghĩ...
-                                                </div>
-                                                <button
-                                                    type="button"
-                                                    onClick={() =>
-                                                        toggleThinking(
-                                                            message.id
-                                                        )
-                                                    }
-                                                    className="text-xs text-primary/90"
-                                                >
-                                                    {message.thinking.collapsed
-                                                        ? "Hiện"
-                                                        : "Ẩn"}
+                                                <div className="text-sm font-medium">Đang suy nghĩ...</div>
+                                                <button type="button" onClick={() => toggleThinking(message.id)} className="text-xs text-primary/90">
+                                                    {message.thinking.collapsed ? "Hiện" : "Ẩn"}
                                                 </button>
                                             </div>
                                             {!message.thinking.collapsed && (
                                                 <div className="mt-2 text-sm text-muted-foreground space-y-2">
-                                                    {message.thinking
-                                                        .description && (
+                                                    {message.thinking.description && (
                                                         <div>
-                                                            <div className="font-semibold text-xs">
-                                                                Tôi sẽ phân tích
-                                                                bức ảnh trước
-                                                                tiên
-                                                            </div>
-                                                            <div className="whitespace-pre-wrap">
-                                                                {
-                                                                    message
-                                                                        .thinking
-                                                                        .description
-                                                                }
-                                                            </div>
+                                                            <div className="font-semibold text-xs">Tôi sẽ phân tích bức ảnh trước tiên</div>
+                                                            <div className="whitespace-pre-wrap">{message.thinking.description}</div>
                                                         </div>
                                                     )}
-                                                    {message.thinking
-                                                        .groqOutput && (
+                                                    {message.thinking.groqOutput && (
                                                         <div>
-                                                            <div className="font-semibold text-xs">
-                                                                Gợi ý hành động
-                                                                tiếp theo
-                                                            </div>
-                                                            <div className="whitespace-pre-wrap">
-                                                                {
-                                                                    message
-                                                                        .thinking
-                                                                        .groqOutput
-                                                                }
-                                                            </div>
+                                                            <div className="font-semibold text-xs">Gợi ý hành động tiếp theo</div>
+                                                            <div className="whitespace-pre-wrap">{message.thinking.groqOutput}</div>
                                                         </div>
                                                     )}
                                                 </div>
@@ -1199,54 +947,33 @@ export function ChatContainer() {
                                         </div>
                                     )}
 
-                                    {message.media &&
-                                        message.media.type === "video" && (
-                                            <div className="mb-2">
-                                                <video
-                                                    key={message.media.src}
-                                                    src={message.media.src}
-                                                    controls
-                                                    className="rounded max-w-[200px] h-auto"
-                                                />
-                                                <div className="mt-2 flex items-center justify-between">
-                                                    <p className="text-xs opacity-70">
-                                                        Video kết quả
-                                                    </p>
-                                                    <Button
-                                                        size="sm"
-                                                        variant="ghost"
-                                                        onClick={() =>
-                                                            downloadMedia(
-                                                                message.media!
-                                                                    .src
-                                                            )
-                                                        }
-                                                        aria-label="Tải xuống video"
-                                                    >
-                                                        <Download
-                                                            className="w-4 h-4"
-                                                            aria-hidden
-                                                        />
-                                                    </Button>
-                                                </div>
+                                    {message.media && message.media.type === "video" && (
+                                        <div className="mb-2">
+                                            <video key={message.media.src} src={message.media.src} controls className="rounded max-w-[200px] h-auto" />
+                                            <div className="mt-2 flex items-center justify-between">
+                                                <p className="text-xs opacity-70">Video kết quả</p>
+                                                <Button
+                                                    size="sm"
+                                                    variant="ghost"
+                                                    onClick={() => downloadMedia(message.media!.src)}
+                                                    aria-label="Tải xuống video"
+                                                >
+                                                    <Download className="w-4 h-4" aria-hidden />
+                                                </Button>
                                             </div>
-                                        )}
+                                        </div>
+                                    )}
                                     {message.text && (
                                         <p className="break-words">
                                             {message.text}
-                                            {message.processing && (
-                                                <AnimatedEllipsis />
-                                            )}
+                                            {message.processing && <AnimatedEllipsis />}
                                         </p>
                                     )}
                                     <p className="text-xs mt-1 opacity-70">
-                                        {message.timestamp.toLocaleTimeString(
-                                            [],
-                                            {
-                                                hour: "2-digit",
-                                                minute: "2-digit",
-                                            }
-                                        )}
+                                        {message.timestamp.toLocaleTimeString([], {
+                                            hour: "2-digit",
+                                            minute: "2-digit",
+                                        })}
                                     </p>
                                 </div>
                             </div>
@@ -1276,18 +1003,10 @@ export function ChatContainer() {
                     {/* Uploaded image preview shown above input (not as a sent message) */}
                     {uploadedImage && (
                         <div className="mb-2 flex items-center gap-3">
-                            <img
-                                src={uploadedImage.src}
-                                alt={uploadedImage.fileName}
-                                className="w-20 h-14 object-cover rounded"
-                            />
+                            <img src={uploadedImage.src} alt={uploadedImage.fileName} className="w-20 h-14 object-cover rounded" />
                             <div className="flex-1 text-sm">
-                                <div className="font-medium">
-                                    {uploadedImage.fileName}
-                                </div>
-                                <div className="text-xs text-muted-foreground">
-                                    {(uploadedImage.size / 1024).toFixed(2)} KB
-                                </div>
+                                <div className="font-medium">{uploadedImage.fileName}</div>
+                                <div className="text-xs text-muted-foreground">{(uploadedImage.size / 1024).toFixed(2)} KB</div>
                             </div>
                             <div>
                                 <Button
@@ -1295,8 +1014,7 @@ export function ChatContainer() {
                                     variant="ghost"
                                     onClick={() => {
                                         setUploadedImage(null);
-                                        if (fileInputRef.current)
-                                            fileInputRef.current.value = "";
+                                        if (fileInputRef.current) fileInputRef.current.value = "";
                                     }}
                                 >
                                     Hủy
@@ -1305,10 +1023,7 @@ export function ChatContainer() {
                         </div>
                     )}
                     {/* Gen Prompt will be shown next to the send button */}
-                    <form
-                        onSubmit={handleSendMessage}
-                        className="flex gap-2 items-center"
-                    >
+                    <form onSubmit={handleSendMessage} className="flex gap-2 items-center">
                         <div className="flex items-center">
                             <Button
                                 type="button"
@@ -1333,11 +1048,7 @@ export function ChatContainer() {
                         <div className="relative flex-1">
                             <textarea
                                 ref={textareaRef}
-                                placeholder={
-                                    isGeneratingPrompt
-                                        ? ""
-                                        : "Nhập mô tả (bắt buộc kèm ảnh)..."
-                                }
+                                placeholder={isGeneratingPrompt ? "" : "Nhập mô tả (bắt buộc kèm ảnh)..."}
                                 value={input}
                                 onChange={(e) => setInput(e.target.value)}
                                 onInput={() => {
@@ -1357,17 +1068,14 @@ export function ChatContainer() {
                                 className="w-full resize-none overflow-hidden rounded-md border border-border px-3 py-2 bg-transparent focus:outline-none"
                             />
 
-                            {isGeneratingPrompt &&
-                                (!input || input.trim() === "") && (
-                                    <div className="absolute inset-0 flex items-start pl-3 pt-2 pointer-events-none text-muted-foreground">
-                                        <span className="whitespace-pre">
-                                            Đang tạo prompt từ ảnh
-                                        </span>
-                                        <span className="ml-1 inline-block">
-                                            <AnimatedEllipsis />
-                                        </span>
-                                    </div>
-                                )}
+                            {isGeneratingPrompt && (!input || input.trim() === "") && (
+                                <div className="absolute inset-0 flex items-start pl-3 pt-2 pointer-events-none text-muted-foreground">
+                                    <span className="whitespace-pre">Đang tạo prompt từ ảnh</span>
+                                    <span className="ml-1 inline-block">
+                                        <AnimatedEllipsis />
+                                    </span>
+                                </div>
+                            )}
                         </div>
 
                         <div className="flex flex-col items-center gap-2">
@@ -1380,80 +1088,46 @@ export function ChatContainer() {
                                         const body: any = {
                                             imageBase64: uploadedImage.src,
                                         };
-                                        if (settings.googleApiKey)
-                                            body.googleApiKey =
-                                                settings.googleApiKey;
-                                        if (settings.openrouterApiKey)
-                                            body.openrouterApiKey =
-                                                settings.openrouterApiKey;
-                                        if (settings.groqApiKey)
-                                            body.groqApiKey =
-                                                settings.groqApiKey;
+                                        if (settings.googleApiKey) body.googleApiKey = settings.googleApiKey;
+                                        if (settings.openrouterApiKey) body.openrouterApiKey = settings.openrouterApiKey;
+                                        if (settings.groqApiKey) body.groqApiKey = settings.groqApiKey;
 
-                                        const res = await fetch(
-                                            "/api/describe",
-                                            {
-                                                method: "POST",
-                                                headers: {
-                                                    "Content-Type":
-                                                        "application/json",
-                                                },
-                                                body: JSON.stringify(body),
-                                            }
-                                        );
+                                        const res = await fetch("/api/describe", {
+                                            method: "POST",
+                                            headers: {
+                                                "Content-Type": "application/json",
+                                            },
+                                            body: JSON.stringify(body),
+                                        });
 
                                         if (!res.ok) {
-                                            const txt = await res
-                                                .text()
-                                                .catch(() => "");
+                                            const txt = await res.text().catch(() => "");
                                             // Try to extract a friendly message from JSON if possible
                                             let friendly = txt;
                                             try {
-                                                const parsed = JSON.parse(
-                                                    txt || "{}"
-                                                );
-                                                if (parsed?.error)
-                                                    friendly = parsed.error;
+                                                const parsed = JSON.parse(txt || "{}");
+                                                if (parsed?.error) friendly = parsed.error;
                                             } catch (e) {
                                                 // leave friendly as raw text
                                             }
-                                            console.error(
-                                                "Describe failed:",
-                                                res.status,
-                                                friendly
-                                            );
-                                            alert(
-                                                `Lỗi khi sinh prompt: ${friendly}`
-                                            );
+                                            console.error("Describe failed:", res.status, friendly);
+                                            alert(`Lỗi khi sinh prompt: ${friendly}`);
                                             return;
                                         }
 
                                         const data = await res.json();
-                                        const suggested =
-                                            data?.groqOutput ||
-                                            data?.description ||
-                                            "";
+                                        const suggested = data?.groqOutput || data?.description || "";
                                         setInput(suggested);
                                         textareaRef.current?.focus();
                                     } catch (err) {
                                         console.error("Gen Prompt error:", err);
-                                        alert(
-                                            "Lỗi khi sinh prompt từ ảnh. Vui lòng thử lại."
-                                        );
+                                        alert("Lỗi khi sinh prompt từ ảnh. Vui lòng thử lại.");
                                     } finally {
                                         setIsGeneratingPrompt(false);
                                     }
                                 }}
-                                disabled={
-                                    isGeneratingPrompt ||
-                                    isProcessing ||
-                                    !uploadedImage
-                                }
-                                title={
-                                    !uploadedImage
-                                        ? "Vui lòng upload ảnh trước khi sinh prompt"
-                                        : "Sinh prompt từ ảnh"
-                                }
+                                disabled={isGeneratingPrompt || isProcessing || !uploadedImage}
+                                title={!uploadedImage ? "Vui lòng upload ảnh trước khi sinh prompt" : "Sinh prompt từ ảnh"}
                                 className="bg-gradient-to-r from-[#8AB4F8] via-[#C58AF9] to-[#F48FB1] text-white hover:opacity-90 disabled:opacity-50"
                             >
                                 <span className="sr-only">Gen Prompt</span>
@@ -1462,14 +1136,7 @@ export function ChatContainer() {
 
                             <Button
                                 type="submit"
-                                disabled={
-                                    isLoading ||
-                                    isProcessing ||
-                                    isGeneratingPrompt ||
-                                    !uploadedImage ||
-                                    !input ||
-                                    input.trim() === ""
-                                }
+                                disabled={isLoading || isProcessing || isGeneratingPrompt || !uploadedImage || !input || input.trim() === ""}
                                 size="icon"
                                 className="bg-primary hover:bg-primary/90"
                             >
@@ -1480,56 +1147,39 @@ export function ChatContainer() {
                     {/* Settings modal */}
                     {isSettingsOpen && (
                         <div className="fixed inset-0 z-50 flex items-center justify-center">
-                            <div
-                                className="absolute inset-0 bg-black/40"
-                                onClick={() => setIsSettingsOpen(false)}
-                            />
+                            <div className="absolute inset-0 bg-black/40" onClick={() => setIsSettingsOpen(false)} />
                             <div className="relative z-10 w-full max-w-lg bg-card border border-border rounded-md p-4">
-                                <h3 className="text-lg font-semibold mb-2">
-                                    Cài đặt API Keys
-                                </h3>
+                                <h3 className="text-lg font-semibold mb-2">Cài đặt API Keys</h3>
                                 <p className="text-xs text-amber-600 mb-2">
-                                    Lưu ý: API sẽ được lưu trên browser storage
-                                    (localStorage). Chỉ nhập API Key miễn phí
-                                    hoặc key mà bạn sẵn sàng để lộ.
+                                    Lưu ý: API sẽ được lưu trên browser storage (localStorage). Chỉ nhập API Key miễn phí hoặc key mà bạn sẵn sàng để lộ.
                                 </p>
                                 <div className="space-y-2">
                                     <div>
-                                        <label className="text-xs">
-                                            GEMINI_API_KEY
-                                        </label>
+                                        <label className="text-xs">GEMINI_API_KEY</label>
                                         <Input
                                             value={settings.googleApiKey || ""}
                                             onChange={(e) =>
                                                 setSettings((s) => ({
                                                     ...s,
-                                                    googleApiKey:
-                                                        e.target.value,
+                                                    googleApiKey: e.target.value,
                                                 }))
                                             }
                                         />
                                     </div>
                                     <div>
-                                        <label className="text-xs">
-                                            OPENROUTER_API_KEY
-                                        </label>
+                                        <label className="text-xs">OPENROUTER_API_KEY</label>
                                         <Input
-                                            value={
-                                                settings.openrouterApiKey || ""
-                                            }
+                                            value={settings.openrouterApiKey || ""}
                                             onChange={(e) =>
                                                 setSettings((s) => ({
                                                     ...s,
-                                                    openrouterApiKey:
-                                                        e.target.value,
+                                                    openrouterApiKey: e.target.value,
                                                 }))
                                             }
                                         />
                                     </div>
                                     <div>
-                                        <label className="text-xs">
-                                            GROQ_API_KEY
-                                        </label>
+                                        <label className="text-xs">GROQ_API_KEY</label>
                                         <Input
                                             value={settings.groqApiKey || ""}
                                             onChange={(e) =>
@@ -1547,12 +1197,8 @@ export function ChatContainer() {
                                         onClick={() => {
                                             // revert to persisted values
                                             try {
-                                                const s =
-                                                    localStorage.getItem(
-                                                        "api_keys_v1"
-                                                    );
-                                                if (s)
-                                                    setSettings(JSON.parse(s));
+                                                const s = localStorage.getItem("api_keys_v1");
+                                                if (s) setSettings(JSON.parse(s));
                                                 else setSettings({});
                                             } catch (e) {
                                                 setSettings({});
@@ -1565,17 +1211,9 @@ export function ChatContainer() {
                                     <Button
                                         onClick={() => {
                                             try {
-                                                localStorage.setItem(
-                                                    "api_keys_v1",
-                                                    JSON.stringify(
-                                                        settings || {}
-                                                    )
-                                                );
+                                                localStorage.setItem("api_keys_v1", JSON.stringify(settings || {}));
                                             } catch (e) {
-                                                console.error(
-                                                    "Failed to save API keys",
-                                                    e
-                                                );
+                                                console.error("Failed to save API keys", e);
                                             }
                                             setIsSettingsOpen(false);
                                         }}
