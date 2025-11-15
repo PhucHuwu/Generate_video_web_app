@@ -134,3 +134,63 @@
         animation-delay: 200ms;
     }
 }
+
+/* Scrollbar styles (native browsers + Radix ScrollArea) */
+/* Use theme variables so they follow .dark or light mode automatically */
+/* Native scrollbars */
+* {
+    scrollbar-width: thin; /* Firefox */
+    scrollbar-color: var(--color-border) transparent;
+}
+
+*::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+}
+
+*::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+*::-webkit-scrollbar-thumb {
+    background-color: var(--color-border);
+    border-radius: 9999px;
+    border: 3px solid transparent;
+    background-clip: padding-box;
+    opacity: 0.9;
+    transition: background-color 0.15s ease, opacity 0.15s ease;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+    opacity: 1;
+}
+
+/* Radix ScrollArea: use data-slot attributes from the component */
+[data-slot="scroll-area-scrollbar"] {
+    background: transparent;
+}
+
+[data-slot="scroll-area-scrollbar"][data-orientation="vertical"] {
+    width: 10px;
+}
+
+[data-slot="scroll-area-scrollbar"][data-orientation="horizontal"] {
+    height: 10px;
+}
+
+[data-slot="scroll-area-thumb"] {
+    background: var(--color-border);
+    border-radius: 9999px;
+    transition: opacity 0.15s ease, background-color 0.15s ease;
+    opacity: 0.9;
+}
+
+[data-slot="scroll-area-scrollbar"]:hover [data-slot="scroll-area-thumb"] {
+    opacity: 1;
+}
+
+/* Improve contrast when element is focused */
+[data-slot="scroll-area-thumb"]:focus-visible {
+    outline: 2px solid var(--color-ring);
+    outline-offset: 2px;
+}

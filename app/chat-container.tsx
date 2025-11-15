@@ -92,6 +92,9 @@ export function ChatContainer() {
     const [isLoading, setIsLoading] = useState(false);
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
+    const textareaRef = useRef<HTMLTextAreaElement>(null);
+    // maximum height in pixels for the prompt textarea before internal scrolling
+    const TEXTAREA_MAX_HEIGHT = 240;
     const streamTimersRef = useRef<Map<string, number>>(new Map());
 
     const scrollToBottom = () => {
@@ -195,6 +198,21 @@ export function ChatContainer() {
     useEffect(() => {
         scrollToBottom();
     }, [messages]);
+
+    // Auto-adjust textarea height when `input` changes programmatically (e.g., cleared on submit)
+    useEffect(() => {
+        const el = textareaRef.current;
+        if (!el) return;
+        el.style.height = "auto";
+        const max = TEXTAREA_MAX_HEIGHT;
+        if (el.scrollHeight > max) {
+            el.style.height = `${max}px`;
+            el.style.overflowY = "auto";
+        } else {
+            el.style.height = `${el.scrollHeight}px`;
+            el.style.overflowY = "hidden";
+        }
+    }, [input]);
 
     // cleanup any running stream timers on unmount
     useEffect(() => {
@@ -1140,13 +1158,26 @@ export function ChatContainer() {
                         </div>
                     )}
                     <form onSubmit={handleSendMessage} className="flex gap-2">
-                        <Input
-                            type="text"
+                        <textarea
+                            ref={textareaRef}
                             placeholder="Nhập mô tả (bắt buộc kèm ảnh)..."
                             value={input}
                             onChange={(e) => setInput(e.target.value)}
+                            onInput={() => {
+                                const el = textareaRef.current;
+                                if (!el) return;
+                                el.style.height = "auto";
+                                const max = TEXTAREA_MAX_HEIGHT;
+                                if (el.scrollHeight > max) {
+                                    el.style.height = `${max}px`;
+                                    el.style.overflowY = "auto";
+                                } else {
+                                    el.style.height = `${el.scrollHeight}px`;
+                                    el.style.overflowY = "hidden";
+                                }
+                            }}
                             disabled={isLoading || isProcessing}
-                            className="flex-1"
+                            className="flex-1 resize-none overflow-hidden rounded border border-border px-3 py-2 bg-transparent focus:outline-none"
                         />
                         <Button
                             type="button"
