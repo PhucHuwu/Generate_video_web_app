@@ -948,13 +948,12 @@ export function ChatContainer() {
                                                                 tiên
                                                             </div>
                                                             <div className="whitespace-pre-wrap">
-                                                                {"Trên hình ảnh là " +
-                                                                    (message
+                                                                {message
+                                                                    .thinking
+                                                                    .visibleDescription ??
+                                                                    message
                                                                         .thinking
-                                                                        .visibleDescription ??
-                                                                        message
-                                                                            .thinking
-                                                                            .description)}
+                                                                        .description}
                                                             </div>
                                                         </div>
                                                     )}

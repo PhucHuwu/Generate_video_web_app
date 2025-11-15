@@ -1,4 +1,6 @@
 import { GoogleGenAI, Part } from "@google/genai";
+import DESCRIBE_IMAGE_PROMPT from "./describe-prompt";
+import { callOpenRouterFallback } from "./openrouter-service";
 
 /**
  * Fetch an image from a public URL and convert to a Generative Part for Gemini.
@@ -37,8 +39,8 @@ export async function describeImageWithGemini(imageUrl: string) {
 
     const ai = new GoogleGenAI({ apiKey });
 
-    // Hard-coded prompt for Gemini (image-only requests)
-    const prompt = `Hãy mô tả nhân vật trong bức ảnh (cử chỉ, tư thế,...), hãy chỉ trả về đoạn mô tả, không ghi chú gì thêm.`;
+    // Use shared prompt for image-only requests
+    const prompt = DESCRIBE_IMAGE_PROMPT;
 
     const imagePart = await fetchImageAsPart(imageUrl);
 
@@ -53,6 +55,8 @@ export async function describeImageWithGemini(imageUrl: string) {
 
     // Try primary model, then fallback to a lighter model if overloaded (503 / UNAVAILABLE)
     let resp: any;
+    let usedFallback = false;
+    let fallbackSource = "";
     try {
         resp = await callModel("gemini-2.5-flash");
     } catch (err: any) {
@@ -65,16 +69,19 @@ export async function describeImageWithGemini(imageUrl: string) {
             /TooManyRequests/i.test(msg)
         ) {
             console.warn(
-                "Gemini model overloaded or rate-limited; waiting 3s then retrying with gemini-2.5-flash-lite",
+                "Gemini model overloaded or rate-limited; waiting 3s then retrying with OpenRouter fallback",
                 msg
             );
             // small delay before fallback to avoid rapid 429 responses
             await new Promise((r) => setTimeout(r, 3000));
+            // Try OpenRouter fallback (separate module)
             try {
-                resp = await callModel("gemini-2.5-flash-lite");
+                resp = await callOpenRouterFallback(imageUrl, prompt);
+                usedFallback = true;
+                fallbackSource = "openrouter";
             } catch (err2: any) {
                 const combined = new Error(
-                    `Gemini describe failed (primary and fallback): ${msg}; ${String(
+                    `Gemini describe failed (primary and OpenRouter fallback): ${msg}; ${String(
                         err2?.message || err2
                     )}`
                 );
@@ -97,6 +104,17 @@ export async function describeImageWithGemini(imageUrl: string) {
     }
 
     text = String(text || "").trim();
+
+    // Debug log which source produced the description and the description text
+    try {
+        const source = usedFallback ? fallbackSource : "gemini-2.5-flash";
+        // Use console.debug for debug-level logs; use console.log if you want always-visible output
+        console.debug(
+            `[describeImageWithGemini] source=${source} description=${text}`
+        );
+    } catch (logErr) {
+        // swallow logging errors to avoid affecting response
+    }
     return text;
 }
 

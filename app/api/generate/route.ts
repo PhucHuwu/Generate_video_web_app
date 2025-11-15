@@ -5,6 +5,12 @@ import { uploadImageToCloudinary } from "@/lib/cloudinary";
 import { describeImageWithGemini } from "@/backend/gemini-service";
 import { sendToGroq } from "@/backend/groq-service";
 
+// Quy tắc prompt chung: đảm bảo mặt nhân vật không bị cắt trong video.
+// Sử dụng một hướng dẫn rõ ràng (positive) và các từ khóa tránh (negative) để tăng khả năng tuân thủ.
+const FACE_RULE_POSITIVE =
+    "Ensure characters' faces remain fully visible and are not cropped.";
+const FACE_RULE_NEGATIVE = "cropped face, cut-off face, partial face";
+
 export async function POST(request: NextRequest) {
     try {
         const contentType = request.headers.get("content-type") || "";
@@ -116,10 +122,15 @@ export async function POST(request: NextRequest) {
                 : "kling/v2-5-turbo-text-to-video-pro";
 
             const createPayload: any = {
-                prompt,
+                // Thêm quy tắc mặt vào prompt (đặt trước để KIE ưu tiên tuân thủ)
+                prompt: `${FACE_RULE_POSITIVE} ${prompt}`.trim(),
                 duration: durationForCreate ?? "10",
+                // Nếu client đã cung cấp negative_prompt thì nối thêm quy tắc mặt,
+                // ngược lại dùng mặc định bao gồm quy tắc mặt để tránh bị cắt.
                 negative_prompt:
-                    negativeForCreate ?? "blur, distort, and low quality",
+                    negativeForCreate && negativeForCreate.trim() !== ""
+                        ? `${negativeForCreate}, ${FACE_RULE_NEGATIVE}`
+                        : `blur, distort, and low quality, ${FACE_RULE_NEGATIVE}`,
                 cfg_scale:
                     typeof cfgForCreate === "number" ? cfgForCreate : 0.3,
             };
@@ -218,12 +229,30 @@ export async function POST(request: NextRequest) {
                 ? body.callBackUrl
                 : undefined;
 
+        // Đảm bảo prompt/negative_prompt bao gồm quy tắc mặt trước khi gọi generateMedia
+        let finalPrompt = prompt;
+        if (!finalPrompt.includes("face") && !finalPrompt.includes("mặt")) {
+            finalPrompt = `${FACE_RULE_POSITIVE} ${finalPrompt}`.trim();
+        }
+
+        let finalNegative = negative_prompt;
+        if (typeof finalNegative === "string" && finalNegative.trim() !== "") {
+            if (
+                !finalNegative.includes("cropped face") &&
+                !finalNegative.includes("mặt bị cắt")
+            ) {
+                finalNegative = `${finalNegative}, ${FACE_RULE_NEGATIVE}`;
+            }
+        } else {
+            finalNegative = `blur, distort, low quality, modest, reserved, decent, unsexy, asexual, prudish, chaste, ${FACE_RULE_NEGATIVE}`;
+        }
+
         const result = await generateMedia(
             {
-                prompt,
+                prompt: finalPrompt,
                 image_url,
                 duration,
-                negative_prompt,
+                negative_prompt: finalNegative,
                 cfg_scale,
             },
             { callBackUrl }
