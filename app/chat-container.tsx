@@ -13,6 +13,7 @@ import {
     Settings,
     Trash,
     Sparkles,
+    Download,
 } from "lucide-react";
 import { useTheme } from "@/components/theme-toggle-provider";
 import NativeConfirm from "@/components/ui/native-confirm";
@@ -1222,7 +1223,10 @@ export function ChatContainer() {
                                                         }
                                                         aria-label="Tải xuống video"
                                                     >
-                                                        Tải xuống
+                                                        <Download
+                                                            className="w-4 h-4"
+                                                            aria-hidden
+                                                        />
                                                     </Button>
                                                 </div>
                                             </div>
