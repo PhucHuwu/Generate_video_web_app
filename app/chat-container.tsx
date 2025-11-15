@@ -5,7 +5,7 @@ import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Send, Upload, Sun, Moon, Settings, Trash, Sparkles, Download } from "lucide-react";
+import { Send, Upload, Sun, Moon, Settings, Trash, Sparkles } from "lucide-react";
 import { useTheme } from "@/components/theme-toggle-provider";
 import NativeConfirm from "@/components/ui/native-confirm";
 
@@ -711,40 +711,6 @@ export function ChatContainer() {
         }
     };
 
-    // Download media (video) helper: use server proxy endpoint to ensure proper download headers for iOS
-    const downloadMedia = async (url: string) => {
-        if (!url) return;
-        try {
-            // Use server proxy endpoint that sets Content-Disposition header
-            const proxyUrl = `/api/download?url=${encodeURIComponent(url)}`;
-
-            // Create a hidden link and trigger download
-            const a = document.createElement("a");
-            a.href = proxyUrl;
-
-            // Extract filename from original URL
-            try {
-                const pathname = new URL(url).pathname;
-                a.download = pathname.split("/").pop() || "video.mp4";
-            } catch (e) {
-                a.download = "video.mp4";
-            }
-
-            document.body.appendChild(a);
-            a.click();
-            a.remove();
-        } catch (err) {
-            console.error("Failed to download media:", err);
-            // Fallback: try opening proxy URL in new tab
-            try {
-                const proxyUrl = `/api/download?url=${encodeURIComponent(url)}`;
-                window.open(proxyUrl, "_blank", "noopener,noreferrer");
-            } catch (e) {
-                console.error("Failed fallback:", e);
-            }
-        }
-    };
-
     const [isConfirmOpen, setIsConfirmOpen] = useState(false);
     const [isLogoutConfirmOpen, setIsLogoutConfirmOpen] = useState(false);
 
@@ -953,17 +919,7 @@ export function ChatContainer() {
                                     {message.media && message.media.type === "video" && (
                                         <div className="mb-2">
                                             <video key={message.media.src} src={message.media.src} controls className="rounded max-w-[200px] h-auto" />
-                                            <div className="mt-2 flex items-center justify-between">
-                                                <p className="text-xs opacity-70">Video kết quả</p>
-                                                <Button
-                                                    size="sm"
-                                                    variant="ghost"
-                                                    onClick={() => downloadMedia(message.media!.src)}
-                                                    aria-label="Tải xuống video"
-                                                >
-                                                    <Download className="w-4 h-4" aria-hidden />
-                                                </Button>
-                                            </div>
+                                            <p className="text-xs mt-1 opacity-70">Video kết quả</p>
                                         </div>
                                     )}
                                     {message.text && (
