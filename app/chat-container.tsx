@@ -809,6 +809,14 @@ export function ChatContainer() {
                             <Button
                                 size="sm"
                                 variant="ghost"
+                                onClick={() => setIsSettingsOpen(true)}
+                                title="Cài đặt API Keys"
+                            >
+                                <Settings className="h-4 w-4" />
+                            </Button>
+                            <Button
+                                size="sm"
+                                variant="ghost"
                                 onClick={async () => {
                                     try {
                                         await fetch("/api/logout", {
@@ -1124,16 +1132,6 @@ export function ChatContainer() {
                             onClick={() => fileInputRef.current?.click()}
                         >
                             <Upload className="w-4 h-4" />
-                        </Button>
-                        <Button
-                            type="button"
-                            disabled={isLoading || isProcessing}
-                            size="icon"
-                            variant="ghost"
-                            title="Cài đặt API Keys"
-                            onClick={() => setIsSettingsOpen(true)}
-                        >
-                            <Settings className="w-4 h-4" />
                         </Button>
                         <input
                             ref={fileInputRef}
