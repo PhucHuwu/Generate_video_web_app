@@ -1181,7 +1181,7 @@ export function ChatContainer() {
                             <div className="relative z-10 w-full max-w-lg bg-card border border-border rounded-md p-4">
                                 <h3 className="text-lg font-semibold mb-2">Cài đặt</h3>
                                 <p className="text-xs text-amber-600 mb-2">
-                                    Lưu ý: API sẽ được lưu trên browser storage (localStorage). Chỉ nhập API Key miễn phí hoặc key mà bạn sẵn sàng để lộ.
+                                    Lưu ý: API sẽ được lưu trên Local storage. Chỉ nhập API Key miễn phí hoặc key mà bạn sẵn sàng để lộ.
                                 </p>
                                 <div className="space-y-2">
                                     <div>
