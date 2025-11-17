@@ -50,26 +50,34 @@ export async function POST(request: NextRequest) {
         const groqApiKey = typeof body?.groqApiKey === "string" ? body.groqApiKey : undefined;
 
         let description: string | undefined;
-        let groqOutput: string | undefined;
+        let groqOutput: string | null | undefined;
 
         try {
             description = await describeImageWithGemini(image_url, googleApiKey, openrouterApiKey);
-            console.log("describe:", description);
         } catch (e: any) {
             console.error("Gemini describe failed:", e);
             return NextResponse.json({ error: `Gemini describe failed: ${e?.message || e}` }, { status: 500 });
         }
 
-        try {
-            groqOutput = await sendToGroq(description || "", groqApiKey);
-            console.log("groq output: ", groqOutput);
-        } catch (e: any) {
-            console.error("Groq processing failed:", e);
-            // Return description even if Groq fails
-            groqOutput = undefined;
+        let groqError: string | undefined;
+        // Only attempt Groq if an API key is available (either override or env)
+        const groqKeyAvailable = !!(groqApiKey || process.env.GROQ_API_KEY);
+        if (groqKeyAvailable) {
+            try {
+                groqOutput = await sendToGroq(description || "", groqApiKey);
+                console.log("groq output: ", groqOutput);
+            } catch (e: any) {
+                console.error("Groq processing failed:", e);
+                groqOutput = null;
+                groqError = String(e?.message || e);
+            }
+        } else {
+            groqOutput = null;
+            groqError = "GROQ API key not configured (env or override)";
+            console.debug("Skipping Groq: no API key available");
         }
 
-        return NextResponse.json({ description, groqOutput, image_url });
+        return NextResponse.json({ description, groqOutput, groqError, image_url });
     } catch (err: any) {
         console.error("/api/describe error", err);
         return NextResponse.json({ error: err?.message || "Lỗi máy chủ" }, { status: 500 });
