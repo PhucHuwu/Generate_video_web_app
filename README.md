@@ -30,10 +30,12 @@ A modern, AI-powered web application for generating videos from text prompts or 
 ### Backend Services
 
 -   **Video Generation**: [KIE AI](https://kie.ai)
--   **AI Image Description**: Google Gemini
--   **Language Processing**: GROQ / OpenRouter
+-   **AI Image Description**: Google Gemini / OpenRouter
+-   **Language Processing**: GROQ
 -   **Image Storage**: Cloudinary
 -   **API Documentation**: Swagger UI + OpenAPI 3.0
+
+    **Note:** Image description uses Google Gemini as the primary service. `OpenRouter` is available as a fallback for image description when Gemini fails or is unavailable.
 
 ## Prerequisites
 
@@ -48,6 +50,7 @@ You'll also need API keys from:
 -   [KIE AI](https://kie.ai) - for video generation
 -   [Google Cloud](https://console.developers.google.com) - for Gemini API
 -   [Cloudinary](https://cloudinary.com) - for image uploads
+-   [OpenRouter](https://openrouter.ai) - optional fallback for image description
 -   [GROQ](https://www.sanity.io/manage) - for language processing (optional)
 
 ## Installation
@@ -181,16 +184,17 @@ This project uses:
 
 ### Environment Variables
 
-| Variable                | Description                                 | Required                 |
-| ----------------------- | ------------------------------------------- | ------------------------ |
-| `KIE_API_KEY`           | KIE AI API key for video generation         | Yes                      |
-| `GEMINI_API_KEY`        | Google Gemini API key for image description | Yes                      |
-| `CLOUDINARY_CLOUD_NAME` | Cloudinary cloud name                       | Yes (for image-to-video) |
-| `CLOUDINARY_API_KEY`    | Cloudinary API key                          | Yes (for image-to-video) |
-| `CLOUDINARY_API_SECRET` | Cloudinary API secret                       | Yes (for image-to-video) |
-| `GROQ_API_KEY`          | GROQ API key for language processing        | Optional                 |
-| `LOGIN_USER`            | Username for authentication                 | Yes                      |
-| `LOGIN_PASS`            | Password for authentication                 | Yes                      |
+| Variable                | Description                                       | Required                 |
+| ----------------------- | ------------------------------------------------- | ------------------------ |
+| `KIE_API_KEY`           | KIE AI API key for video generation               | Yes                      |
+| `GEMINI_API_KEY`        | Google Gemini API key for image description       | Yes                      |
+| `CLOUDINARY_CLOUD_NAME` | Cloudinary cloud name                             | Yes (for image-to-video) |
+| `CLOUDINARY_API_KEY`    | Cloudinary API key                                | Yes (for image-to-video) |
+| `CLOUDINARY_API_SECRET` | Cloudinary API secret                             | Yes (for image-to-video) |
+| `GROQ_API_KEY`          | GROQ API key for language processing              | Optional                 |
+| `LOGIN_USER`            | Username for authentication                       | Yes                      |
+| `LOGIN_PASS`            | Password for authentication                       | Yes                      |
+| `OPENROUTER_API_KEY`    | OpenRouter API key for image description fallback | Optional                 |
 
 ## Features in Detail
 
@@ -207,6 +211,8 @@ This project uses:
 -   Support for public image URLs and base64 data URLs
 -   Automatic image upload to Cloudinary
 -   Optional GROQ integration for enhanced descriptions
+
+-   Uses Google Gemini for primary image captioning; falls back to OpenRouter when Gemini errors or is unavailable.
 
 ### Authentication
 
@@ -269,7 +275,6 @@ This project is private and proprietary.
 
 For issues and questions:
 
--   Check existing [API documentation](./api_doc.md)
 -   Review troubleshooting section above
 -   Open an issue in the repository
 

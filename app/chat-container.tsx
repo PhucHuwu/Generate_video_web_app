@@ -5,6 +5,8 @@ import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Label } from "@/components/ui/label";
 import { Send, Upload, Sun, Moon, Settings, Trash, Sparkles, Download } from "lucide-react";
 import { useTheme } from "@/components/theme-toggle-provider";
 import NativeConfirm from "@/components/ui/native-confirm";
@@ -129,7 +131,10 @@ export function ChatContainer() {
         googleApiKey?: string;
         openrouterApiKey?: string;
         groqApiKey?: string;
-    }>({});
+        duration?: "5" | "10";
+    }>({
+        duration: "10", // default to 10 seconds
+    });
     const [isLoading, setIsLoading] = useState(false);
     const [isGeneratingPrompt, setIsGeneratingPrompt] = useState(false);
     const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -215,7 +220,14 @@ export function ChatContainer() {
         }
         try {
             const s = localStorage.getItem("api_keys_v1");
-            if (s) setSettings(JSON.parse(s));
+            if (s) {
+                const loaded = JSON.parse(s);
+                setSettings({
+                    ...loaded,
+                    // Ensure duration has a default if not set
+                    duration: loaded.duration || "10",
+                });
+            }
         } catch (e) {
             // ignore
         }
@@ -292,6 +304,8 @@ export function ChatContainer() {
             if (settings.googleApiKey) body.googleApiKey = settings.googleApiKey;
             if (settings.openrouterApiKey) body.openrouterApiKey = settings.openrouterApiKey;
             if (settings.groqApiKey) body.groqApiKey = settings.groqApiKey;
+            // Include duration setting
+            if (settings.duration) body.duration = settings.duration;
 
             const response = await fetch("/api/generate", {
                 method: "POST",
@@ -813,7 +827,12 @@ export function ChatContainer() {
                                     ) : credits === null ? (
                                         <span>$-</span>
                                     ) : (
-                                        <span>${credits}</span>
+                                        <span className="inline-flex items-center gap-1">
+                                            <span>${credits}</span>
+                                            <span className="text-muted-foreground">
+                                                ({Math.floor(credits / (settings.duration === "5" ? 0.21 : 0.42))} video)
+                                            </span>
+                                        </span>
                                     )}
                                 </span>
                             </Button>
@@ -1190,6 +1209,31 @@ export function ChatContainer() {
                                             }
                                         />
                                     </div>
+                                    <div>
+                                        <label className="text-xs font-medium block mb-2">Thời lượng video</label>
+                                        <RadioGroup
+                                            value={settings.duration || "10"}
+                                            onValueChange={(value: "5" | "10") =>
+                                                setSettings((s) => ({
+                                                    ...s,
+                                                    duration: value,
+                                                }))
+                                            }
+                                        >
+                                            <div className="flex items-center space-x-2">
+                                                <RadioGroupItem value="5" id="duration-5" />
+                                                <Label htmlFor="duration-5" className="cursor-pointer">
+                                                    5 giây
+                                                </Label>
+                                            </div>
+                                            <div className="flex items-center space-x-2">
+                                                <RadioGroupItem value="10" id="duration-10" />
+                                                <Label htmlFor="duration-10" className="cursor-pointer">
+                                                    10 giây
+                                                </Label>
+                                            </div>
+                                        </RadioGroup>
+                                    </div>
                                 </div>
                                 <div className="mt-4 flex justify-end gap-2">
                                     <Button
@@ -1198,10 +1242,17 @@ export function ChatContainer() {
                                             // revert to persisted values
                                             try {
                                                 const s = localStorage.getItem("api_keys_v1");
-                                                if (s) setSettings(JSON.parse(s));
-                                                else setSettings({});
+                                                if (s) {
+                                                    const loaded = JSON.parse(s);
+                                                    setSettings({
+                                                        ...loaded,
+                                                        duration: loaded.duration || "10",
+                                                    });
+                                                } else {
+                                                    setSettings({ duration: "10" });
+                                                }
                                             } catch (e) {
-                                                setSettings({});
+                                                setSettings({ duration: "10" });
                                             }
                                             setIsSettingsOpen(false);
                                         }}
