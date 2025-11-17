@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 
 export default function LoginPage() {
@@ -9,6 +9,26 @@ export default function LoginPage() {
     const [password, setPassword] = useState("");
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [isChecking, setIsChecking] = useState(true);
+
+    // Check if user is already logged in
+    useEffect(() => {
+        (async () => {
+            try {
+                const res = await fetch("/api/auth");
+                if (res.ok) {
+                    // User is already authenticated, redirect to home
+                    router.replace("/");
+                } else {
+                    // User is not authenticated, show login form
+                    setIsChecking(false);
+                }
+            } catch (e) {
+                // Error checking auth, show login form
+                setIsChecking(false);
+            }
+        })();
+    }, [router]);
 
     async function handleSubmit(e: React.FormEvent) {
         e.preventDefault();
@@ -34,6 +54,24 @@ export default function LoginPage() {
         } finally {
             setLoading(false);
         }
+    }
+
+    // Show loading state while checking authentication
+    if (isChecking) {
+        return (
+            <main className="min-h-screen flex items-center justify-center bg-background">
+                <div className="w-full max-w-md p-8 border border-border bg-card rounded-lg shadow-sm">
+                    <div className="flex flex-col items-center justify-center gap-4">
+                        <div className="flex gap-1">
+                            <div className="w-2 h-2 bg-primary rounded-full animate-bounce"></div>
+                            <div className="w-2 h-2 bg-primary rounded-full animate-bounce delay-100"></div>
+                            <div className="w-2 h-2 bg-primary rounded-full animate-bounce delay-200"></div>
+                        </div>
+                        <p className="text-muted-foreground text-sm">Đang kiểm tra đăng nhập...</p>
+                    </div>
+                </div>
+            </main>
+        );
     }
 
     return (
