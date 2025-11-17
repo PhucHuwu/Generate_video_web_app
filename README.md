@@ -140,9 +140,9 @@ Vui lòng tạo Pull Request trên branch `main`. Nếu bạn muốn mở rộng
 
 This repository includes a minimal login page available at `/login` which checks credentials against environment variables.
 
-- Server API: `POST /api/login` — expects JSON { "username": string, "password": string }.
-- Env variables (set them in your `.env.local` or `.ENV` as used in this repo): `LOGIN_USER` and `LOGIN_PASS`.
-- On success the API returns `{ ok: true }` and the client redirects to `/`.
+-   Server API: `POST /api/login` — expects JSON { "username": string, "password": string }.
+-   Env variables (set them in your `.env.local` or `.ENV` as used in this repo): `LOGIN_USER` and `LOGIN_PASS`.
+-   On success the API returns `{ ok: true }` and the client redirects to `/`.
 
 Example (in `.env.local` or `.ENV`):
 
@@ -150,5 +150,13 @@ Example (in `.env.local` or `.ENV`):
 LOGIN_USER=admin
 LOGIN_PASS=admin123
 ```
+
+## **API Docs**
+
+-   **Path**: `public/swagger/index.html` (bật dev server và mở `http://localhost:3000/swagger` hoặc `http://localhost:3000/swagger/index.html`).
+-   **Spec**: `public/openapi.json` chứa OpenAPI (minimal) cho các endpoint chính: `/api/describe`, `/api/generate`, `/api/credits`.
+-   **Usage**: Mở trang, chọn endpoint, điền body (JSON) và gửi thử để kiểm tra response nhanh.
+
+Lưu ý: một vài endpoint yêu cầu API key (ví dụ KIE API key) được cấu hình trên server để hoạt động đúng — nếu thiếu, API sẽ trả lỗi tương ứng.
 
 Change those to whatever values you want. This login is intentionally minimal (no sessions/cookies) — it's just a simple credential check for local/demo purposes.

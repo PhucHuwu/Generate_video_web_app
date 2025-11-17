@@ -1,0 +1,87 @@
+{
+    "openapi": "3.0.1",
+    "info": {
+        "title": "Generate Video Web App API",
+        "version": "1.0.0",
+        "description": "OpenAPI specification (minimal) để test các endpoint chính của ứng dụng."
+    },
+    "servers": [{ "url": "/", "description": "Local server (relative)" }],
+    "paths": {
+        "/api/describe": {
+            "post": {
+                "summary": "Mô tả ảnh (describe)",
+                "description": "Sinh mô tả từ ảnh. Gửi `image_url` (https) hoặc `imageBase64` (data URL).",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "type": "object",
+                                "properties": {
+                                    "image_url": { "type": "string", "format": "uri" },
+                                    "imageBase64": { "type": "string" },
+                                    "googleApiKey": { "type": "string" },
+                                    "openrouterApiKey": { "type": "string" },
+                                    "groqApiKey": { "type": "string" }
+                                }
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Thành công",
+                        "content": {
+                            "application/json": {
+                                "schema": { "type": "object" }
+                            }
+                        }
+                    },
+                    "400": { "description": "Yêu cầu không hợp lệ" },
+                    "500": { "description": "Lỗi máy chủ" }
+                }
+            }
+        },
+        "/api/generate": {
+            "post": {
+                "summary": "Tạo video từ ảnh + prompt",
+                "description": "Tạo tác vụ tạo media. Gửi `image_url` hoặc `imageBase64` và `prompt`.",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "type": "object",
+                                "properties": {
+                                    "image_url": { "type": "string", "format": "uri" },
+                                    "imageBase64": { "type": "string" },
+                                    "prompt": { "type": "string" },
+                                    "duration": { "type": "string", "enum": ["5", "10"] },
+                                    "negative_prompt": { "type": "string" },
+                                    "cfg_scale": { "type": "number" },
+                                    "callBackUrl": { "type": "string", "format": "uri" }
+                                },
+                                "required": ["prompt"]
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": { "description": "Tác vụ được tạo (JSON với taskId/state)", "content": { "application/json": { "schema": { "type": "object" } } } },
+                    "400": { "description": "Dữ liệu gửi lên không hợp lệ" },
+                    "500": { "description": "Lỗi máy chủ" }
+                }
+            }
+        },
+        "/api/credits": {
+            "get": {
+                "summary": "Kiểm tra credits (proxy)",
+                "description": "Truy vấn trạng thái credits từ dịch vụ bên thứ ba (nếu API key cấu hình).",
+                "responses": {
+                    "200": { "description": "Thông tin credits", "content": { "application/json": { "schema": { "type": "object" } } } },
+                    "500": { "description": "Lỗi server hoặc API key chưa cấu hình" }
+                }
+            }
+        }
+    }
+}
