@@ -3,8 +3,10 @@
 import React, { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { Sun, Moon, Settings as SettingsIcon, Trash, AlertTriangle, Image as ImageIcon } from "lucide-react";
+import { Sun, Moon, Settings as SettingsIcon, Trash, AlertTriangle } from "lucide-react";
 import { useTheme } from "@/components/theme-toggle-provider";
+import { cn } from "@/lib/utils";
+import { ModeToggle } from "@/components/ui/mode-toggle";
 import NativeConfirm from "@/components/ui/native-confirm";
 import { Message, Settings } from "@/modules/video/types";
 import { MessageList } from "./MessageList";
@@ -688,84 +690,85 @@ export function VideoChatContainer() {
                             <h1 className="text-2xl font-bold text-foreground hidden md:block">Chatbot tạo video</h1>
                             <p className="text-sm text-muted-foreground hidden md:block">Tạo video từ mô tả văn bản và ảnh</p>
                         </div>
-                        <Button variant="outline" size="sm" onClick={() => router.push("/image")} className="gap-2">
-                            <ImageIcon className="h-4 w-4" />
-                            <span className="hidden sm:inline">Chế độ Ảnh</span>
-                        </Button>
+                        <ModeToggle currentMode="video" onToggle={() => router.push("/image")} />
                     </div>
-                    <div>
-                        <div className="flex items-center gap-2">
-                            <Button
-                                id="btn-fetch-credits"
-                                size="sm"
-                                variant="ghost"
-                                onClick={fetchCredits}
-                                disabled={isFetchingCredits}
-                                title={creditsError ? `Lỗi: ${creditsError}` : "Lấy số dư hiện tại"}
-                            >
-                                <span className="text-sm">
-                                    {isFetchingCredits ? (
-                                        <span className="inline-flex items-center gap-1">
-                                            <span className="w-2 h-2 rounded-full bg-muted-foreground animate-bounce" />
-                                            <span>...</span>
-                                        </span>
-                                    ) : credits === null ? (
-                                        <span>-</span>
-                                    ) : (
-                                        <span className="inline-flex items-center gap-1">
-                                            {(() => {
-                                                const remainingVideos = Math.floor(credits / (settings.duration === "5" ? 42 : 84));
-                                                const isLowCredits = remainingVideos <= 3;
-                                                return (
-                                                    <>
-                                                        {isLowCredits && (
-                                                            <AlertTriangle className="w-4 h-4 text-amber-500" aria-label="Cảnh báo: Credits thấp" />
+                    <div className="flex items-center gap-2">
+                        <Button
+                            id="btn-fetch-credits"
+                            size="sm"
+                            variant="ghost"
+                            onClick={fetchCredits}
+                            disabled={isFetchingCredits}
+                            title={creditsError ? `Lỗi: ${creditsError}` : "Lấy số dư hiện tại"}
+                        >
+                            <span className="text-sm">
+                                {isFetchingCredits ? (
+                                    <span className="inline-flex items-center gap-1">
+                                        <span className="w-2 h-2 rounded-full bg-muted-foreground animate-bounce" />
+                                        <span>...</span>
+                                    </span>
+                                ) : credits === null ? (
+                                    <span>-</span>
+                                ) : (
+                                    <span className="inline-flex items-center gap-1">
+                                        {(() => {
+                                            const remainingVideos = Math.floor(credits / (settings.duration === "5" ? 42 : 84));
+                                            const isLowCredits = remainingVideos <= 3;
+                                            return (
+                                                <>
+                                                    {isLowCredits && (
+                                                        <AlertTriangle className="w-4 h-4 text-amber-500 shrink-0" aria-label="Cảnh báo: Credits thấp" />
+                                                    )}
+                                                    <span className="tabular-nums">{credits}</span>
+                                                    <span className="hidden sm:inline">credits</span>
+                                                    <span
+                                                        className={cn(
+                                                            "hidden md:inline",
+                                                            isLowCredits ? "text-amber-500 font-medium" : "text-muted-foreground"
                                                         )}
-                                                        <span>{credits} credits</span>
-                                                        <span className={isLowCredits ? "text-amber-500 font-medium" : "text-muted-foreground"}>
-                                                            ({remainingVideos} video)
-                                                        </span>
-                                                    </>
-                                                );
-                                            })()}
-                                        </span>
-                                    )}
-                                </span>
-                            </Button>
+                                                    >
+                                                        ({remainingVideos} video)
+                                                    </span>
+                                                </>
+                                            );
+                                        })()}
+                                    </span>
+                                )}
+                            </span>
+                        </Button>
 
-                            <Button
-                                id="btn-theme-toggle"
-                                size="sm"
-                                variant="ghost"
-                                onClick={toggleTheme}
-                                title={theme === "light" ? "Chuyển sang chế độ tối" : "Chuyển sang chế độ sáng"}
-                            >
-                                {theme === "light" ? <Moon className="h-4 w-4" /> : <Sun className="h-4 w-4" />}
-                            </Button>
-                            <Button id="btn-settings" size="sm" variant="ghost" onClick={() => setIsSettingsOpen(true)} title="Cài đặt">
-                                <SettingsIcon className="h-4 w-4" />
-                            </Button>
-                            <Button
-                                id="btn-clear-history"
-                                size="sm"
-                                variant="ghost"
-                                onClick={clearHistory}
-                                disabled={messages.length === 0 || isLoading || isProcessing}
-                                title="Xóa lịch sử chat"
-                            >
-                                <Trash className="h-4 w-4" />
-                            </Button>
-                            <Button
-                                id="btn-logout"
-                                size="sm"
-                                variant="ghost"
-                                onClick={() => setIsLogoutConfirmOpen(true)}
-                                disabled={isLoading || isProcessing}
-                                title={isLoading || isProcessing ? "Không thể đăng xuất khi đang tạo video" : undefined}
-                            >
-                                Đăng xuất
-                            </Button>
-                        </div>
+                        <Button
+                            id="btn-theme-toggle"
+                            size="sm"
+                            variant="ghost"
+                            onClick={toggleTheme}
+                            title={theme === "light" ? "Chuyển sang chế độ tối" : "Chuyển sang chế độ sáng"}
+                        >
+                            {theme === "light" ? <Moon className="h-4 w-4" /> : <Sun className="h-4 w-4" />}
+                        </Button>
+                        <Button id="btn-settings" size="sm" variant="ghost" onClick={() => setIsSettingsOpen(true)} title="Cài đặt">
+                            <SettingsIcon className="h-4 w-4" />
+                        </Button>
+                        <Button
+                            id="btn-clear-history"
+                            size="sm"
+                            variant="ghost"
+                            onClick={clearHistory}
+                            disabled={messages.length === 0 || isLoading || isProcessing}
+                            title="Xóa lịch sử chat"
+                        >
+                            <Trash className="h-4 w-4" />
+                        </Button>
+                        <Button
+                            id="btn-logout"
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => setIsLogoutConfirmOpen(true)}
+                            disabled={isLoading || isProcessing}
+                            title={isLoading || isProcessing ? "Không thể đăng xuất khi đang tạo video" : undefined}
+                        >
+                            Đăng xuất
+                        </Button>
                     </div>
                 </div>
             </header>

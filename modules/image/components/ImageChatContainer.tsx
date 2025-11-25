@@ -3,8 +3,9 @@
 import React, { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { Sun, Moon, Trash, Video } from "lucide-react";
+import { Sun, Moon, Trash } from "lucide-react";
 import { useTheme } from "@/components/theme-toggle-provider";
+import { ModeToggle } from "@/components/ui/mode-toggle";
 import NativeConfirm from "@/components/ui/native-confirm";
 import { Message } from "@/modules/video/types";
 import { MessageList } from "@/modules/video/components/MessageList";
@@ -19,6 +20,7 @@ export function ImageChatContainer() {
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const textareaRef = useRef<HTMLTextAreaElement>(null);
     const [isConfirmOpen, setIsConfirmOpen] = useState(false);
+    const [isLogoutConfirmOpen, setIsLogoutConfirmOpen] = useState(false);
     const [hasLoadedHistory, setHasLoadedHistory] = useState(false);
 
     const STORAGE_KEY = "chat_history_image_v1";
@@ -85,8 +87,6 @@ export function ImageChatContainer() {
                 text: userMessage.text, // Echo
                 sender: "bot",
                 timestamp: new Date(),
-                // Simulate image result for testing if needed, or just text echo
-                // media: { type: "image", src: "..." }
             };
             setMessages((prev) => [...prev, botMessage]);
             setIsLoading(false);
@@ -105,6 +105,22 @@ export function ImageChatContainer() {
         setIsConfirmOpen(false);
     };
 
+    const doLogout = async () => {
+        if (isLoading) {
+            setIsLogoutConfirmOpen(false);
+            try {
+                alert("Không thể đăng xuất khi đang tạo ảnh. Vui lòng đợi quá trình hoàn tất.");
+            } catch (e) {}
+            return;
+        }
+
+        setIsLogoutConfirmOpen(false);
+        try {
+            await fetch("/api/logout", { method: "POST" });
+        } catch (e) {}
+        router.replace("/login");
+    };
+
     return (
         <div className="flex flex-col h-screen bg-background">
             <header className="border-b border-border bg-card p-4">
@@ -114,10 +130,7 @@ export function ImageChatContainer() {
                             <h1 className="text-2xl font-bold text-foreground hidden md:block">Chatbot tạo ảnh</h1>
                             <p className="text-sm text-muted-foreground hidden md:block">Tạo ảnh từ mô tả văn bản</p>
                         </div>
-                        <Button variant="outline" size="sm" onClick={() => router.push("/")} className="gap-2">
-                            <Video className="h-4 w-4" />
-                            <span className="hidden sm:inline">Chế độ Video</span>
-                        </Button>
+                        <ModeToggle currentMode="image" onToggle={() => router.push("/")} />
                     </div>
                     <div className="flex items-center gap-2">
                         <Button
@@ -130,6 +143,15 @@ export function ImageChatContainer() {
                         </Button>
                         <Button size="sm" variant="ghost" onClick={clearHistory} disabled={messages.length === 0 || isLoading} title="Xóa lịch sử chat">
                             <Trash className="h-4 w-4" />
+                        </Button>
+                        <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => setIsLogoutConfirmOpen(true)}
+                            disabled={isLoading}
+                            title={isLoading ? "Không thể đăng xuất khi đang tạo ảnh" : undefined}
+                        >
+                            Đăng xuất
                         </Button>
                     </div>
                 </div>
@@ -151,6 +173,15 @@ export function ImageChatContainer() {
                 cancelLabel="Hủy"
                 onConfirm={doClearHistory}
                 onCancel={() => setIsConfirmOpen(false)}
+            />
+            <NativeConfirm
+                open={isLogoutConfirmOpen}
+                title="Đăng xuất"
+                description="Bạn có chắc muốn đăng xuất khỏi tài khoản hiện tại? Bạn sẽ cần đăng nhập lại để tiếp tục."
+                confirmLabel="Đăng xuất"
+                cancelLabel="Hủy"
+                onConfirm={doLogout}
+                onCancel={() => setIsLogoutConfirmOpen(false)}
             />
         </div>
     );
