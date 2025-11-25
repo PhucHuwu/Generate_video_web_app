@@ -6,13 +6,6 @@ export interface Message {
         fileName: string;
         size: number;
     };
-    thinking?: {
-        // raw Gemini description and optional Groq-processed output
-        description?: string;
-        groqOutput?: string;
-        // whether the thinking block is collapsed (hidden) in the UI
-        collapsed?: boolean;
-    };
     media?: {
         src: string;
         type: "video" | "image" | "unknown";

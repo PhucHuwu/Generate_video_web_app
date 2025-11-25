@@ -52,7 +52,7 @@ export async function POST(request: NextRequest) {
         if (!image_url) {
             return NextResponse.json(
                 {
-                    error: "Dịch vụ chỉ hỗ trợ tạo video từ ảnh hoặc ảnh+kèm prompt. Trường hợp chỉ nhập prompt không được hỗ trợ.",
+                    error: "Dịch vụ chỉ hỗ trợ tạo video từ ảnh hoặc ảnh kèm prompt. Trường hợp chỉ nhập prompt không được hỗ trợ.",
                 },
                 { status: 400 }
             );

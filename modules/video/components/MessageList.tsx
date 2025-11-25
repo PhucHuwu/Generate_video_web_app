@@ -4,11 +4,10 @@ import { MessageItem } from "./MessageItem";
 
 interface MessageListProps {
     messages: Message[];
-    onToggleThinking: (id: string) => void;
     messagesEndRef: React.RefObject<HTMLDivElement | null>;
 }
 
-export function MessageList({ messages, onToggleThinking, messagesEndRef }: MessageListProps) {
+export function MessageList({ messages, messagesEndRef }: MessageListProps) {
     return (
         <div className="flex-1 overflow-y-auto p-4 space-y-6 scroll-smooth">
             {messages.length === 0 ? (
@@ -21,7 +20,7 @@ export function MessageList({ messages, onToggleThinking, messagesEndRef }: Mess
                     <p className="max-w-xs text-sm">Tải lên một bức ảnh và nhập mô tả để bắt đầu tạo video.</p>
                 </div>
             ) : (
-                messages.map((message) => <MessageItem key={message.id} message={message} onToggleThinking={onToggleThinking} />)
+                messages.map((message) => <MessageItem key={message.id} message={message} />)
             )}
             <div ref={messagesEndRef} />
         </div>

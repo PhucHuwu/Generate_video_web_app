@@ -40,7 +40,6 @@ export function VideoChatContainer() {
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
     const textareaRef = useRef<HTMLTextAreaElement>(null);
-    const TEXTAREA_MAX_HEIGHT = 240;
 
     const [isConfirmOpen, setIsConfirmOpen] = useState(false);
     const [isLogoutConfirmOpen, setIsLogoutConfirmOpen] = useState(false);
@@ -98,22 +97,6 @@ export function VideoChatContainer() {
 
     const scrollToBottom = () => {
         messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-    };
-
-    const toggleThinking = (id: string) => {
-        setMessages((prev) =>
-            prev.map((m) =>
-                m.id === id && m.thinking
-                    ? {
-                          ...m,
-                          thinking: {
-                              ...m.thinking,
-                              collapsed: !m.thinking.collapsed,
-                          },
-                      }
-                    : m
-            )
-        );
     };
 
     useEffect(() => {
@@ -207,7 +190,12 @@ export function VideoChatContainer() {
         try {
             const body: any = { prompt: input };
             if (imageToSend) {
-                body.imageBase64 = imageToSend.src;
+                // Nếu src là URL Cloudinary (https://...) thì gửi image_url, còn nếu là base64 thì gửi imageBase64
+                if (imageToSend.src.startsWith("https://")) {
+                    body.image_url = imageToSend.src;
+                } else {
+                    body.imageBase64 = imageToSend.src;
+                }
                 body.fileName = imageToSend.fileName;
             }
             if (settings.googleApiKey) body.googleApiKey = settings.googleApiKey;
@@ -266,8 +254,6 @@ export function VideoChatContainer() {
             }
 
             const data = await response.json();
-            const thinkingDescription = data?.description || data?.geminiDescription || undefined;
-            const thinkingGroq = data?.groqOutput || undefined;
 
             if (Array.isArray(data?.resultUrls) && data.resultUrls.length > 0) {
                 const videoUrl = data.resultUrls[0];
@@ -277,14 +263,6 @@ export function VideoChatContainer() {
                     media: { src: videoUrl, type: "video" },
                     sender: "bot",
                     timestamp: new Date(),
-                    thinking:
-                        thinkingDescription || thinkingGroq
-                            ? {
-                                  description: thinkingDescription,
-                                  groqOutput: thinkingGroq,
-                                  collapsed: true,
-                              }
-                            : undefined,
                 };
                 setMessages((prev) => [...prev, botMessage]);
                 setIsProcessing(false);
@@ -296,12 +274,6 @@ export function VideoChatContainer() {
                     sender: "bot",
                     timestamp: new Date(),
                     processing: true,
-                    thinking:
-                        thinkingDescription || thinkingGroq
-                            ? {
-                                  collapsed: false,
-                              }
-                            : undefined,
                 };
                 setMessages((prev) => [...prev, processingMessage]);
                 setIsProcessing(true);
@@ -342,14 +314,6 @@ export function VideoChatContainer() {
                                     media: { src: videoUrl, type: "video" },
                                     sender: "bot",
                                     timestamp: new Date(),
-                                    thinking:
-                                        statusData?.geminiDescription || statusData?.groqOutput
-                                            ? {
-                                                  description: statusData?.geminiDescription,
-                                                  groqOutput: statusData?.groqOutput,
-                                                  collapsed: true,
-                                              }
-                                            : undefined,
                                 };
 
                                 setMessages((prev) => {
@@ -373,14 +337,6 @@ export function VideoChatContainer() {
                                     text: `Lỗi: ${failMsg}`,
                                     sender: "bot",
                                     timestamp: new Date(),
-                                    thinking:
-                                        statusData?.geminiDescription || statusData?.groqOutput
-                                            ? {
-                                                  description: statusData?.geminiDescription,
-                                                  groqOutput: statusData?.groqOutput,
-                                                  collapsed: true,
-                                              }
-                                            : undefined,
                                 };
 
                                 setMessages((prev) => {
@@ -565,19 +521,43 @@ export function VideoChatContainer() {
         setIsLoading(true);
 
         try {
+            // Read file as base64
             const reader = new FileReader();
             reader.onload = async (event) => {
                 const base64String = event.target?.result as string;
-                setUploadedImage({
-                    src: base64String,
-                    fileName: file.name,
-                    size: file.size,
-                });
-                setIsLoading(false);
+
+                try {
+                    // Upload to Cloudinary
+                    const uploadRes = await fetch("/api/upload/image", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ imageBase64: base64String }),
+                    });
+
+                    if (!uploadRes.ok) {
+                        const errorData = await uploadRes.json().catch(() => ({ error: "Upload failed" }));
+                        throw new Error(errorData.error || "Failed to upload image");
+                    }
+
+                    const { url } = await uploadRes.json();
+
+                    // Store Cloudinary URL instead of base64
+                    setUploadedImage({
+                        src: url,
+                        fileName: file.name,
+                        size: file.size,
+                    });
+                    setIsLoading(false);
+                } catch (uploadError: any) {
+                    console.error("Cloudinary upload error:", uploadError);
+                    alert(`Lỗi khi upload ảnh: ${uploadError.message || "Vui lòng thử lại"}`);
+                    setIsLoading(false);
+                }
             };
             reader.readAsDataURL(file);
         } catch (error) {
             console.error("Error processing image:", error);
+            alert("Lỗi khi xử lý ảnh. Vui lòng thử lại.");
             setIsLoading(false);
         }
 
@@ -591,7 +571,7 @@ export function VideoChatContainer() {
         setIsGeneratingPrompt(true);
         try {
             const body: any = {
-                imageBase64: uploadedImage.src,
+                image_url: uploadedImage.src, // Now it's a Cloudinary URL
             };
             if (settings.googleApiKey) body.googleApiKey = settings.googleApiKey;
             if (settings.openrouterApiKey) body.openrouterApiKey = settings.openrouterApiKey;
@@ -763,7 +743,7 @@ export function VideoChatContainer() {
 
             <main id="chat-messages-container" className="flex-1 overflow-y-auto">
                 <div className="max-w-4xl mx-auto h-full flex flex-col">
-                    <MessageList messages={messages} onToggleThinking={toggleThinking} messagesEndRef={messagesEndRef} />
+                    <MessageList messages={messages} messagesEndRef={messagesEndRef} />
                 </div>
             </main>
 

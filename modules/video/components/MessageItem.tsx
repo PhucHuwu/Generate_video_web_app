@@ -1,6 +1,5 @@
-import React from "react";
 import { Button } from "@/components/ui/button";
-import { Sparkles, Download, AlertTriangle, ChevronDown, ChevronRight } from "lucide-react";
+import { Download, AlertTriangle } from "lucide-react";
 import { Message } from "@/modules/video/types";
 import { downloadMedia } from "@/modules/video/utils/media-utils";
 import { cn } from "@/lib/utils";
@@ -8,10 +7,9 @@ import { AnimatedEllipsis } from "./ui/animated-ellipsis";
 
 interface MessageItemProps {
     message: Message;
-    onToggleThinking: (id: string) => void;
 }
 
-export function MessageItem({ message, onToggleThinking }: MessageItemProps) {
+export function MessageItem({ message }: MessageItemProps) {
     const isUser = message.sender === "user";
     const isBot = message.sender === "bot";
     const isError = message.text?.startsWith("Lỗi:");
@@ -32,38 +30,6 @@ export function MessageItem({ message, onToggleThinking }: MessageItemProps) {
                 {message.image && (
                     <div className="mb-3 overflow-hidden rounded-lg border border-border/50 bg-background/50">
                         <img src={message.image.src} alt="Uploaded" className="max-h-64 w-full object-contain" />
-                    </div>
-                )}
-
-                {/* Thinking Block (Bot only) */}
-                {isBot && message.thinking && (
-                    <div className="mb-3 overflow-hidden rounded-lg border border-border/50 bg-background/50 text-xs">
-                        <button
-                            onClick={() => onToggleThinking(message.id)}
-                            className="flex w-full items-center justify-between bg-muted/30 px-3 py-2 text-muted-foreground hover:bg-muted/50 transition-colors"
-                        >
-                            <div className="flex items-center gap-2">
-                                <Sparkles className="h-3 w-3" />
-                                <span className="font-medium">Quá trình suy nghĩ</span>
-                            </div>
-                            {message.thinking.collapsed ? <ChevronRight className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
-                        </button>
-                        {!message.thinking.collapsed && (
-                            <div className="space-y-3 p-3 animate-in slide-in-from-top-2 duration-200">
-                                {message.thinking.description && (
-                                    <div>
-                                        <div className="mb-1 font-semibold text-primary/80">Mô tả ảnh (Gemini):</div>
-                                        <div className="leading-relaxed text-muted-foreground">{message.thinking.description}</div>
-                                    </div>
-                                )}
-                                {message.thinking.groqOutput && (
-                                    <div>
-                                        <div className="mb-1 font-semibold text-primary/80">Prompt chi tiết (Groq):</div>
-                                        <div className="whitespace-pre-wrap leading-relaxed text-muted-foreground">{message.thinking.groqOutput}</div>
-                                    </div>
-                                )}
-                            </div>
-                        )}
                     </div>
                 )}
 

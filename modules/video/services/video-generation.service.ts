@@ -108,7 +108,7 @@ export async function generateMedia(
     // Disallow missing prompt here. The application flow now requires the client to
     // generate a prompt first (via `/api/describe`) or provide one manually.
     if (!input.image_url) {
-        throw new Error("Dịch vụ chỉ hỗ trợ tạo video từ ảnh hoặc ảnh+kèm prompt. Trường hợp chỉ nhập prompt không được hỗ trợ.");
+        throw new Error("Dịch vụ chỉ hỗ trợ tạo video từ ảnh hoặc ảnh kèm prompt. Trường hợp chỉ nhập prompt không được hỗ trợ.");
     }
 
     // Defensive check: KIE only accepts https image URLs. Reject non-https inputs early.

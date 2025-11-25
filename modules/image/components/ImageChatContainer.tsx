@@ -57,10 +57,6 @@ export function ImageChatContainer() {
         messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
     };
 
-    const toggleThinking = (id: string) => {
-        // No thinking state for image chat yet, but required by MessageList
-    };
-
     useEffect(() => {
         scrollToBottom();
     }, [messages]);
@@ -196,7 +192,7 @@ export function ImageChatContainer() {
 
             <div className="flex-1 overflow-y-auto">
                 <div className="max-w-4xl mx-auto h-full flex flex-col">
-                    <MessageList messages={messages} onToggleThinking={toggleThinking} messagesEndRef={messagesEndRef} />
+                    <MessageList messages={messages} messagesEndRef={messagesEndRef} />
                 </div>
             </div>
 
