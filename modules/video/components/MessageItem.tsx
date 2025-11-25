@@ -101,7 +101,11 @@ export function MessageItem({ message, onToggleThinking }: MessageItemProps) {
                     </div>
                 )}
             </div>
-            <div className="px-1 text-[10px] text-muted-foreground/60">{message.timestamp.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</div>
+            <div className="px-1 text-[10px] text-muted-foreground/60">
+                {`${message.timestamp.getDate().toString().padStart(2, "0")}/${(message.timestamp.getMonth() + 1)
+                    .toString()
+                    .padStart(2, "0")} ${message.timestamp.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: false })}`}
+            </div>
         </div>
     );
 }

@@ -682,7 +682,7 @@ export function VideoChatContainer() {
     return (
         <div className="flex flex-col h-screen bg-background">
             <header id="chat-header" className="border-b border-border bg-card p-4">
-                <div className="max-w-4xl mx-auto flex items-center justify-between">
+                <div className="w-full flex items-center justify-between">
                     <div>
                         <h1 className="text-2xl font-bold text-foreground hidden md:block">Chatbot tạo video</h1>
                         <p className="text-sm text-muted-foreground hidden md:block">Tạo video từ mô tả văn bản và ảnh</p>
