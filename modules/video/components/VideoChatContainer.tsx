@@ -3,7 +3,7 @@
 import React, { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { Sun, Moon, Settings as SettingsIcon, Trash, AlertTriangle } from "lucide-react";
+import { Sun, Moon, Settings as SettingsIcon, Trash, AlertTriangle, LogOut } from "lucide-react";
 import { useTheme } from "@/components/theme-toggle-provider";
 import { cn } from "@/lib/utils";
 import { ModeToggle } from "@/components/ui/mode-toggle";
@@ -765,9 +765,11 @@ export function VideoChatContainer() {
                             variant="ghost"
                             onClick={() => setIsLogoutConfirmOpen(true)}
                             disabled={isLoading || isProcessing}
-                            title={isLoading || isProcessing ? "Không thể đăng xuất khi đang tạo video" : undefined}
+                            title={isLoading || isProcessing ? "Không thể đăng xuất khi đang tạo video" : "Đăng xuất"}
+                            className="gap-1.5"
                         >
-                            Đăng xuất
+                            <LogOut className="h-4 w-4" />
+                            <span className="hidden sm:inline">Đăng xuất</span>
                         </Button>
                     </div>
                 </div>

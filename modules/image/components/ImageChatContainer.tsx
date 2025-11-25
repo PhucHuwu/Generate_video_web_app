@@ -3,7 +3,7 @@
 import React, { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { Sun, Moon, Trash } from "lucide-react";
+import { Sun, Moon, Trash, LogOut } from "lucide-react";
 import { useTheme } from "@/components/theme-toggle-provider";
 import { ModeToggle } from "@/components/ui/mode-toggle";
 import NativeConfirm from "@/components/ui/native-confirm";
@@ -149,9 +149,11 @@ export function ImageChatContainer() {
                             variant="ghost"
                             onClick={() => setIsLogoutConfirmOpen(true)}
                             disabled={isLoading}
-                            title={isLoading ? "Không thể đăng xuất khi đang tạo ảnh" : undefined}
+                            title={isLoading ? "Không thể đăng xuất khi đang tạo ảnh" : "Đăng xuất"}
+                            className="gap-1.5"
                         >
-                            Đăng xuất
+                            <LogOut className="h-4 w-4" />
+                            <span className="hidden sm:inline">Đăng xuất</span>
                         </Button>
                     </div>
                 </div>
