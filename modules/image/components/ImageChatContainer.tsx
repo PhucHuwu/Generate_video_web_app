@@ -77,20 +77,55 @@ export function ImageChatContainer() {
         };
 
         setMessages((prev) => [...prev, userMessage]);
+        const promptText = input;
         setInput("");
         setIsLoading(true);
 
-        // Mock response
-        setTimeout(() => {
+        try {
+            // Call Grok image generation API
+            const response = await fetch("/api/image/generate", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({ prompt: promptText }),
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({ error: "Unknown error" }));
+                throw new Error(errorData.error || "Failed to generate image");
+            }
+
+            const data = await response.json();
+
+            // Create bot message with generated image
             const botMessage: Message = {
                 id: (Date.now() + 1).toString(),
-                text: userMessage.text, // Echo
+                text: data.revisedPrompt || promptText,
+                sender: "bot",
+                timestamp: new Date(),
+                media: data.imageUrl
+                    ? {
+                          type: "image",
+                          src: data.imageUrl,
+                      }
+                    : undefined,
+            };
+
+            setMessages((prev) => [...prev, botMessage]);
+        } catch (error: any) {
+            console.error("Image generation error:", error);
+            // Add error message to chat
+            const errorMessage: Message = {
+                id: (Date.now() + 1).toString(),
+                text: `Lỗi: ${error.message || "Không thể tạo ảnh. Vui lòng thử lại."}`,
                 sender: "bot",
                 timestamp: new Date(),
             };
-            setMessages((prev) => [...prev, botMessage]);
+            setMessages((prev) => [...prev, errorMessage]);
+        } finally {
             setIsLoading(false);
-        }, 1000);
+        }
     };
 
     const clearHistory = () => {

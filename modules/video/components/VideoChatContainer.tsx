@@ -121,20 +121,6 @@ export function VideoChatContainer() {
     }, [messages]);
 
     useEffect(() => {
-        const el = textareaRef.current;
-        if (!el) return;
-        el.style.height = "auto";
-        const max = TEXTAREA_MAX_HEIGHT;
-        if (el.scrollHeight > max) {
-            el.style.height = `${max}px`;
-            el.style.overflowY = "auto";
-        } else {
-            el.style.height = `${el.scrollHeight}px`;
-            el.style.overflowY = "hidden";
-        }
-    }, [input]);
-
-    useEffect(() => {
         setIsClient(true);
         try {
             const raw = localStorage.getItem(STORAGE_KEY);

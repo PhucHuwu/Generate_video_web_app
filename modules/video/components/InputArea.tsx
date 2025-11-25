@@ -3,6 +3,7 @@ import { Input } from "@/components/ui/input";
 import { Send, Upload, Settings, Trash, Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { AnimatedEllipsis } from "./ui/animated-ellipsis";
+import { useEffect } from "react";
 
 interface InputAreaProps {
     input: string;
@@ -41,6 +42,23 @@ export function InputArea({
             onSend(e as any);
         }
     };
+
+    // Auto-resize textarea based on content
+    useEffect(() => {
+        const el = textareaRef.current;
+        if (!el) return;
+
+        el.style.height = "auto";
+        const maxHeight = 200; // Max height in pixels
+
+        if (el.scrollHeight > maxHeight) {
+            el.style.height = `${maxHeight}px`;
+            el.style.overflowY = "auto";
+        } else {
+            el.style.height = `${el.scrollHeight}px`;
+            el.style.overflowY = "hidden";
+        }
+    }, [input, textareaRef]);
 
     return (
         <div className="border-t border-border bg-background/95 p-4 backdrop-blur supports-[backdrop-filter]:bg-background/60">
