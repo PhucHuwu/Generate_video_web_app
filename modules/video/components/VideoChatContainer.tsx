@@ -287,7 +287,8 @@ export function VideoChatContainer() {
             // Bắt đầu polling ngay với taskId
             setIsLoading(false);
 
-            (async () => {
+            // Polling function
+            const pollTaskStatus = async () => {
                 const TIMEOUT_MS = 5 * 60 * 1000; // 5 phút
                 const POLL_INTERVAL_MS = 3000; // 3 giây
                 const startTime = Date.now();
@@ -414,7 +415,24 @@ export function VideoChatContainer() {
                     )
                 );
                 setIsProcessing(false);
-            })();
+            };
+
+            // Gọi polling function
+            pollTaskStatus().catch((err) => {
+                console.error("Polling error:", err);
+                setMessages((prev) =>
+                    prev.map((m) =>
+                        m.id === tempId
+                            ? {
+                                  ...m,
+                                  text: `Lỗi: ${err.message || "Lỗi khi poll task status"}`,
+                                  processing: false,
+                              }
+                            : m
+                    )
+                );
+                setIsProcessing(false);
+            });
         } catch (error: any) {
             console.error("Error sending message:", error);
             let friendly = (error && error.message) || "Không nhận được phản hồi từ dịch vụ.";

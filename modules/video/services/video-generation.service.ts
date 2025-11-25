@@ -119,7 +119,7 @@ export async function generateMedia(
     }
 
     // choose model based on presence of image_url
-    const model = input.image_url ? "kling/v2-5-turbo-image-to-video-pro" : "kling/v2-5-turbo-text-to-video-pro";
+    const model = "kling/v2-5-turbo-image-to-video-pro";
 
     const createPayload: any = {
         prompt: input.prompt,
