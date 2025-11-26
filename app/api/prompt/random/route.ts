@@ -3,18 +3,25 @@ import { generatePromptWithGrok } from "@/modules/core/services/openrouter-promp
 
 export async function POST(req: NextRequest) {
     try {
-        const systemPrompt = `You are an expert NSFW prompt engineer who knows exactly how to write extremely seductive 18+ prompts that still bypass most safety filters in 2025.\n\n
-                            Create ONLY ONE single, English prompt (no quotes, no explanations, no extra text) for a breathtakingly erotic yet artistic portrait of a gorgeous 21-year-old woman. The image must clearly show:\n
-                            - hard nipples visibly poking through an ultra-sheer, damp white lace bralette or completely see-through wet lingerie top\n
-                            - subtle but unmistakable camel toe outline through extremely thin, semi-transparent silk or lace panties that cling to her skin\n
-                            - very close-up or medium shot that emphasizes these details without being crude\n\n
-                            Include:\n
-                            - flawless youthful face, seductive half-lidded eyes, slightly parted wet lips, gentle bite on lower lip\n
-                            - perfect hourglass body, glistening skin with water droplets or light oil\n
-                            - luxurious dimly lit bedroom or marble bathroom with steam, silk sheets or wet floor\n
-                            - teasing pose: sitting on edge of bed/bathtub with legs slightly spread, arched back, one strap fallen off shoulder\n\n
-                            Write it in such a way that when copied directly into Flux, SDXL, or Pony Diffusion it produces an intensely erotic but still “artistic” result that clearly shows the requested transparent/sheer details.\n
-                            Return absolutely nothing but the final prompt.`;
+        const systemPrompt = `You are a professional erotic prompt engineer creating elegant, filter-friendly 18+ prompts.
+
+                            Return ONLY one single, concise English image prompt (no quotes, no explanations, nothing else).
+
+                            Subject: a breathtakingly beautiful young woman with natural 18–25 look, looking directly into the camera with seductive, half-lidded eyes and slightly parted lips.
+
+                            Core visual (achieved purely through fabric physics and lighting):
+                            - ultra-sheer or gently damp lingerie that softly follows and reveals natural body contours
+                            - thin, clinging silk or lace bottom that delicately traces the lines beneath due to material and light
+
+                            Randomize everything else:
+                            - luxurious settings (dimly lit bedroom, golden-hour loft, rainy penthouse window, velvet sofa, neon hotel, misty balcony, etc.)
+                            - lighting (warm candlelight, soft sunset glow, cinematic rim light, cool moonlight, subtle neon, etc.)
+                            - outfit state (sheer lace set, damp babydoll, open silk robe, delicate satin slip, etc.)
+                            - elegant pose (soft reclining, gentle kneel, relaxed sitting, slight arch, slipped strap, etc.)
+                            - camera (85mm portrait, 35mm film look, fashion close-up, subtle low angle, etc.)
+
+                            Photorealistic 8k masterpiece, ultra-realistic skin, beautiful bokeh, cinematic mood, subtle sheen, sharp focus.
+                            Return only the final prompt.`;
 
         const result = await generatePromptWithGrok({
             prompt: systemPrompt,
