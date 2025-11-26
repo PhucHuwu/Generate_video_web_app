@@ -23,26 +23,33 @@ export function ImageChatContainer() {
     const [isConfirmOpen, setIsConfirmOpen] = useState(false);
     const [isLogoutConfirmOpen, setIsLogoutConfirmOpen] = useState(false);
     const [hasLoadedHistory, setHasLoadedHistory] = useState(false);
+    const [hasMoreHistory, setHasMoreHistory] = useState(false);
+    const [isLoadingMore, setIsLoadingMore] = useState(false);
+    const [oldestCursor, setOldestCursor] = useState<string | null>(null);
 
     useEffect(() => {
         const fetchHistory = async () => {
             try {
-                const res = await fetch("/api/chat/history?type=image");
+                const res = await fetch("/api/chat/history?type=image&limit=10");
                 if (res.ok) {
                     const data = await res.json();
-                    if (Array.isArray(data)) {
+                    if (data.messages && Array.isArray(data.messages)) {
                         setMessages(
-                            data.map((m: any) => ({
+                            data.messages.map((m: any) => ({
                                 ...m,
                                 timestamp: new Date(m.timestamp),
                             }))
                         );
+                        setHasMoreHistory(data.hasMore || false);
+                        setOldestCursor(data.nextCursor || null);
                     }
                 }
             } catch (error) {
                 console.error("Failed to load history:", error);
             } finally {
                 setHasLoadedHistory(true);
+                // Scroll to bottom after loading history to show newest messages
+                setTimeout(scrollToBottom, 200);
             }
         };
 
@@ -50,12 +57,15 @@ export function ImageChatContainer() {
     }, []);
 
     const scrollToBottom = () => {
-        messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-    };
+        // Scroll instantly without smooth animation to avoid annoying effect
+        messagesEndRef.current?.scrollIntoView({ behavior: "auto" });
 
-    useEffect(() => {
-        scrollToBottom();
-    }, [messages]);
+        // Also use scrollTop as backup to ensure we scroll all the way
+        const container = messagesEndRef.current?.parentElement;
+        if (container) {
+            container.scrollTop = container.scrollHeight;
+        }
+    };
 
     const handleSendMessage = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -69,6 +79,10 @@ export function ImageChatContainer() {
         };
 
         setMessages((prev) => [...prev, userMessage]);
+
+        // Scroll to bottom after user sends message
+        setTimeout(scrollToBottom, 100);
+
         const promptText = input;
         setInput("");
 
@@ -94,6 +108,10 @@ export function ImageChatContainer() {
             processing: true,
         };
         setMessages((prev) => [...prev, processingMessage]);
+
+        // Scroll to show processing message
+        setTimeout(scrollToBottom, 100);
+
         setIsLoading(true);
 
         try {
@@ -130,6 +148,9 @@ export function ImageChatContainer() {
             // Thay thế processing message bằng kết quả
             setMessages((prev) => prev.map((m) => (m.id === tempId ? botMessage : m)));
 
+            // Scroll to show the generated image
+            setTimeout(scrollToBottom, 100);
+
             // Save bot message to DB
             fetch("/api/chat/history", {
                 method: "POST",
@@ -153,6 +174,9 @@ export function ImageChatContainer() {
                 processing: false,
             };
             setMessages((prev) => prev.map((m) => (m.id === tempId ? errorMessage : m)));
+
+            // Scroll to show error message
+            setTimeout(scrollToBottom, 100);
 
             // Save error message to DB (optional)
             fetch("/api/chat/history", {
@@ -192,6 +216,32 @@ export function ImageChatContainer() {
             alert("Lỗi khi tạo prompt ngẫu nhiên. Vui lòng thử lại.");
         } finally {
             setIsGeneratingPrompt(false);
+        }
+    };
+
+    const loadMoreHistory = async () => {
+        if (!hasMoreHistory || isLoadingMore || !oldestCursor) return;
+
+        setIsLoadingMore(true);
+        try {
+            const res = await fetch(`/api/chat/history?type=image&limit=10&cursor=${oldestCursor}`);
+            if (res.ok) {
+                const data = await res.json();
+                if (data.messages && Array.isArray(data.messages)) {
+                    const olderMessages = data.messages.map((m: any) => ({
+                        ...m,
+                        timestamp: new Date(m.timestamp),
+                    }));
+                    // Prepend older messages to the beginning
+                    setMessages((prev) => [...olderMessages, ...prev]);
+                    setHasMoreHistory(data.hasMore || false);
+                    setOldestCursor(data.nextCursor || null);
+                }
+            }
+        } catch (error) {
+            console.error("Failed to load more history:", error);
+        } finally {
+            setIsLoadingMore(false);
         }
     };
 
@@ -263,7 +313,13 @@ export function ImageChatContainer() {
 
             <div className="flex-1 overflow-y-auto">
                 <div className="max-w-4xl mx-auto h-full flex flex-col">
-                    <MessageList messages={messages} messagesEndRef={messagesEndRef} />
+                    <MessageList
+                        messages={messages}
+                        messagesEndRef={messagesEndRef}
+                        hasMoreHistory={hasMoreHistory}
+                        isLoadingMore={isLoadingMore}
+                        onLoadMore={loadMoreHistory}
+                    />
                 </div>
             </div>
 

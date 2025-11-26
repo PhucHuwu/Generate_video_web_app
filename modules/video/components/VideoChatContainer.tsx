@@ -42,6 +42,9 @@ export function VideoChatContainer() {
 
     const [isConfirmOpen, setIsConfirmOpen] = useState(false);
     const [isLogoutConfirmOpen, setIsLogoutConfirmOpen] = useState(false);
+    const [hasMoreHistory, setHasMoreHistory] = useState(false);
+    const [isLoadingMore, setIsLoadingMore] = useState(false);
+    const [oldestCursor, setOldestCursor] = useState<string | null>(null);
 
     useEffect(() => {
         (async () => {
@@ -95,33 +98,40 @@ export function VideoChatContainer() {
     }
 
     const scrollToBottom = () => {
-        messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-    };
+        // Scroll instantly without smooth animation to avoid annoying effect
+        messagesEndRef.current?.scrollIntoView({ behavior: "auto" });
 
-    useEffect(() => {
-        scrollToBottom();
-    }, [messages]);
+        // Also use scrollTop as backup to ensure we scroll all the way
+        const container = messagesEndRef.current?.parentElement;
+        if (container) {
+            container.scrollTop = container.scrollHeight;
+        }
+    };
 
     useEffect(() => {
         setIsClient(true);
         const fetchHistory = async () => {
             try {
-                const res = await fetch("/api/chat/history?type=video");
+                const res = await fetch("/api/chat/history?type=video&limit=10");
                 if (res.ok) {
                     const data = await res.json();
-                    if (Array.isArray(data)) {
+                    if (data.messages && Array.isArray(data.messages)) {
                         setMessages(
-                            data.map((m: any) => ({
+                            data.messages.map((m: any) => ({
                                 ...m,
                                 timestamp: new Date(m.timestamp),
                             }))
                         );
+                        setHasMoreHistory(data.hasMore || false);
+                        setOldestCursor(data.nextCursor || null);
                     }
                 }
             } catch (error) {
                 console.error("Failed to load history:", error);
             } finally {
                 setHasLoadedHistory(true);
+                // Scroll to bottom after loading history to show newest messages
+                setTimeout(scrollToBottom, 200);
             }
         };
 
@@ -165,6 +175,10 @@ export function VideoChatContainer() {
         };
 
         setMessages((prev) => [...prev, userMessage]);
+
+        // Scroll to bottom after user sends message
+        setTimeout(scrollToBottom, 100);
+
         const imageToSend = uploadedImage
             ? {
                   src: uploadedImage.src,
@@ -202,6 +216,10 @@ export function VideoChatContainer() {
             processing: true,
         };
         setMessages((prev) => [...prev, processingMessage]);
+
+        // Scroll to show processing message
+        setTimeout(scrollToBottom, 100);
+
         setIsLoading(true);
         setIsProcessing(true);
 
@@ -268,6 +286,10 @@ export function VideoChatContainer() {
                 };
                 // Thay thế processing message bằng error message
                 setMessages((prev) => prev.map((m) => (m.id === tempId ? botMessage : m)));
+
+                // Scroll to show error message
+                setTimeout(scrollToBottom, 100);
+
                 setIsLoading(false);
                 setIsProcessing(false);
 
@@ -297,6 +319,10 @@ export function VideoChatContainer() {
                     timestamp: new Date(),
                 };
                 setMessages((prev) => prev.map((m) => (m.id === tempId ? errorMessage : m)));
+
+                // Scroll to show error
+                setTimeout(scrollToBottom, 100);
+
                 setIsProcessing(false);
                 setIsLoading(false);
                 return;
@@ -644,6 +670,32 @@ export function VideoChatContainer() {
         }
     };
 
+    const loadMoreHistory = async () => {
+        if (!hasMoreHistory || isLoadingMore || !oldestCursor) return;
+
+        setIsLoadingMore(true);
+        try {
+            const res = await fetch(`/api/chat/history?type=video&limit=10&cursor=${oldestCursor}`);
+            if (res.ok) {
+                const data = await res.json();
+                if (data.messages && Array.isArray(data.messages)) {
+                    const olderMessages = data.messages.map((m: any) => ({
+                        ...m,
+                        timestamp: new Date(m.timestamp),
+                    }));
+                    // Prepend older messages to the beginning
+                    setMessages((prev) => [...olderMessages, ...prev]);
+                    setHasMoreHistory(data.hasMore || false);
+                    setOldestCursor(data.nextCursor || null);
+                }
+            }
+        } catch (error) {
+            console.error("Failed to load more history:", error);
+        } finally {
+            setIsLoadingMore(false);
+        }
+    };
+
     const doClearHistory = () => {
         setMessages([]);
         try {
@@ -778,7 +830,13 @@ export function VideoChatContainer() {
 
             <main id="chat-messages-container" className="flex-1 overflow-y-auto">
                 <div className="max-w-4xl mx-auto h-full flex flex-col">
-                    <MessageList messages={messages} messagesEndRef={messagesEndRef} />
+                    <MessageList
+                        messages={messages}
+                        messagesEndRef={messagesEndRef}
+                        hasMoreHistory={hasMoreHistory}
+                        isLoadingMore={isLoadingMore}
+                        onLoadMore={loadMoreHistory}
+                    />
                 </div>
             </main>
 
