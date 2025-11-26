@@ -1,6 +1,5 @@
 generator client {
   provider = "prisma-client-js"
-  output   = "../node_modules/.prisma/client"
 }
 
 datasource db {
@@ -17,6 +16,11 @@ model ChatMessage {
   mediaType String?  // "image" or "video"
   timestamp DateTime
   createdAt DateTime @default(now())
+
+  // Fields for video generation tracking
+  taskId     String?
+  status     String?   // "pending", "success", "failed"
+  failReason String?
 
   @@index([type, timestamp])
 }

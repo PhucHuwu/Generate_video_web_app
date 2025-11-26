@@ -41,6 +41,7 @@ export function InputArea({
     const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
         if (e.key === "Enter" && !e.shiftKey) {
             e.preventDefault();
+            if (isUploadingImage) return;
             onSend(e as any);
         }
     };
@@ -123,7 +124,7 @@ export function InputArea({
                             placeholder="Mô tả video/ảnh bạn muốn tạo..."
                             className="flex min-h-[48px] w-full rounded-xl border border-input bg-background px-4 py-3 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 resize-none"
                             rows={1}
-                            disabled={isLoading}
+                            disabled={isLoading || isUploadingImage}
                         />
                         {uploadedImage && !input && onGeneratePrompt && (
                             <Button
@@ -132,7 +133,7 @@ export function InputArea({
                                 size="sm"
                                 className="absolute right-2 top-2 h-8 gap-1.5 text-xs bg-gradient-to-r from-[#8AB4F8] via-[#C58AF9] to-[#F48FB1] text-white hover:opacity-90 disabled:opacity-50"
                                 onClick={onGeneratePrompt}
-                                disabled={isGeneratingPrompt || isLoading}
+                                disabled={isGeneratingPrompt || isLoading || isUploadingImage}
                             >
                                 <Sparkles className="h-3 w-3" />
                                 {isGeneratingPrompt ? "Đang tạo..." : "Gen Prompt"}
@@ -153,7 +154,12 @@ export function InputArea({
                         )}
                     </div>
 
-                    <Button type="submit" size="icon" className="h-12 w-12 shrink-0 rounded-xl" disabled={isLoading || (!input && !uploadedImage)}>
+                    <Button
+                        type="submit"
+                        size="icon"
+                        className="h-12 w-12 shrink-0 rounded-xl"
+                        disabled={isLoading || isUploadingImage || (!input && !uploadedImage)}
+                    >
                         <Send className="h-5 w-5" />
                     </Button>
                 </form>

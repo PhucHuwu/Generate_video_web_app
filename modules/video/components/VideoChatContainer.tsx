@@ -121,6 +121,7 @@ export function VideoChatContainer() {
                             data.messages.map((m: any) => ({
                                 ...m,
                                 timestamp: new Date(m.timestamp),
+                                processing: m.status === "pending",
                             }))
                         );
                         setHasMoreHistory(data.hasMore || false);
@@ -147,12 +148,166 @@ export function VideoChatContainer() {
                 });
             }
         } catch (e) {}
+
+        // Resume polling for pending tasks
+        const resumePolling = async () => {
+            try {
+                // Fetch pending tasks from DB (we reuse history API but filter client-side for now,
+                // or ideally we should have a specific endpoint, but let's filter from the history we just loaded?
+                // Actually, fetchHistory sets state. We should fetch specifically for pending tasks or check the loaded messages.
+                // Since fetchHistory is async and sets state, we might miss it here.
+                // Let's do a separate fetch for pending tasks to be safe and robust.
+
+                // Wait a bit for history to load? No, let's just fetch pending ones.
+                // Actually, we can just fetch the latest history and check if the latest one is pending.
+                // But let's be more robust. Let's fetch the last 20 messages and check for pending status.
+                const res = await fetch("/api/chat/history?type=video&limit=20");
+                if (res.ok) {
+                    const data = await res.json();
+                    if (data.messages && Array.isArray(data.messages)) {
+                        const pendingMessages = data.messages.filter((m: any) => m.status === "pending" && m.taskId);
+                        pendingMessages.forEach((msg: any) => {
+                            // Re-construct the polling context
+                            const tempId = msg.id; // Use DB id as tempId for local state updates if needed, but we should probably map it.
+                            // Actually, we need to add these to the local message list if they aren't there?
+                            // fetchHistory will add them. We just need to start polling.
+
+                            // We need to know if it's already being polled?
+                            // This runs once on mount.
+
+                            console.log("Resuming polling for task:", msg.taskId);
+                            setIsProcessing(true); // Set global processing state
+
+                            // Start polling
+                            pollTaskStatus(msg.taskId, msg.id);
+                        });
+                    }
+                }
+            } catch (e) {
+                console.error("Failed to resume polling:", e);
+            }
+        };
+
+        resumePolling();
+        resumePolling();
     }, []);
+
+    // Polling function moved to component scope
+    const pollTaskStatus = async (taskId: string, dbId: string | null) => {
+        const TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes
+        const POLL_INTERVAL_MS = 3000; // 3 seconds
+        const startTime = Date.now();
+        const maxChecks = Math.floor(TIMEOUT_MS / POLL_INTERVAL_MS);
+        const tempId = dbId || taskId; // Use dbId if available, else taskId for local updates (though local updates use tempId usually)
+
+        // Note: For local state updates, we might need the original tempId if we want to update the specific message bubble
+        // that was just created. But if we are resuming, we might not have that tempId.
+        // However, we can find the message by taskId in the messages list if needed.
+        // For simplicity, let's assume we update the DB and the user reloads or we fetch history to see updates?
+        // Or we can try to update local state by finding the message with the matching taskId.
+
+        // Helper to update local message state
+        const updateLocalMessage = (text: string, processing: boolean, media?: any) => {
+            setMessages((prev) =>
+                prev.map((m) => {
+                    // Match by taskId if it exists in the message, or by id if it matches dbId
+                    if ((m as any).taskId === taskId) return { ...m, text, processing, media: media || m.media };
+                    if (dbId && m.id === dbId) return { ...m, text, processing, media: media || m.media };
+                    return m;
+                })
+            );
+        };
+
+        // Helper function to extract video URL
+        const extractVideoUrl = (obj: any): string | null => {
+            if (Array.isArray(obj?.resultUrls) && obj.resultUrls.length > 0) return obj.resultUrls[0];
+            try {
+                const resultJson = obj?.raw?.data?.resultJson;
+                if (resultJson) {
+                    const parsed = typeof resultJson === "string" ? JSON.parse(resultJson) : resultJson;
+                    if (Array.isArray(parsed?.resultUrls) && parsed.resultUrls.length > 0) return parsed.resultUrls[0];
+                }
+            } catch (e) {}
+            if (Array.isArray(obj?.raw?.resultUrls) && obj.raw.resultUrls.length > 0) return obj.raw.resultUrls[0];
+            if (Array.isArray(obj?.data?.resultUrls) && obj.data.resultUrls.length > 0) return obj.data.resultUrls[0];
+            return null;
+        };
+
+        for (let i = 0; i < maxChecks; i++) {
+            const elapsed = Date.now() - startTime;
+
+            if (elapsed >= TIMEOUT_MS) {
+                updateLocalMessage("Lỗi: Quá trình tạo video vượt quá 5 phút. Vui lòng thử lại sau.", false);
+                setIsProcessing(false);
+
+                // Update DB to failed
+                fetch("/api/chat/history", {
+                    method: "PATCH",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ taskId, status: "failed", failReason: "Timeout", text: "Lỗi: Quá trình tạo video vượt quá 5 phút." }),
+                }).catch(console.error);
+                return;
+            }
+
+            try {
+                const statusRes = await fetch(`/api/video/generate/status?taskId=${encodeURIComponent(taskId)}`);
+                if (statusRes.ok) {
+                    const statusData = await statusRes.json();
+                    const videoUrl = extractVideoUrl(statusData);
+
+                    if (videoUrl) {
+                        updateLocalMessage("Video đã tạo xong!", false, { src: videoUrl, type: "video" });
+                        setIsProcessing(false);
+
+                        // Update DB to success
+                        fetch("/api/chat/history", {
+                            method: "PATCH",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({
+                                taskId,
+                                status: "success",
+                                media: { src: videoUrl, type: "video" },
+                                text: "Video đã tạo xong!",
+                            }),
+                        }).catch(console.error);
+                        return;
+                    }
+
+                    if (statusData?.state === "fail" || statusData?.state === "failed") {
+                        const failMsg = statusData?.failMsg || "Quá trình tạo video thất bại.";
+                        updateLocalMessage(`Lỗi: ${failMsg}`, false);
+                        setIsProcessing(false);
+
+                        // Update DB to failed
+                        fetch("/api/chat/history", {
+                            method: "PATCH",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({ taskId, status: "failed", failReason: failMsg, text: `Lỗi: ${failMsg}` }),
+                        }).catch(console.error);
+                        return;
+                    }
+                }
+            } catch (err) {
+                // Ignore network errors
+            }
+
+            await new Promise((r) => setTimeout(r, POLL_INTERVAL_MS));
+        }
+
+        // Timeout fallback
+        updateLocalMessage("Lỗi: Quá trình tạo video vượt quá 5 phút.", false);
+        setIsProcessing(false);
+    };
 
     const handleSendMessage = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!uploadedImage) {
             alert("Vui lòng chọn ảnh (bắt buộc). Trường hợp chỉ nhập prompt không được hỗ trợ.");
+            return;
+        }
+
+        if (isUploadingImage) {
+            alert("Vui lòng đợi ảnh tải lên hoàn tất.");
             return;
         }
 
@@ -211,7 +366,7 @@ export function VideoChatContainer() {
         const tempId = (Date.now() + 1).toString();
         const processingMessage: Message = {
             id: tempId,
-            text: "Đang tạo video — quá trình có thể mất khoảng 3 - 5 phút. Vui lòng không đóng hay tải lại trang này",
+            text: "Đang tạo video — quá trình có thể mất khoảng 3 - 5 phút. Vui lòng đợi",
             sender: "bot",
             timestamp: new Date(),
             processing: true,
@@ -329,195 +484,36 @@ export function VideoChatContainer() {
                 return;
             }
 
+            // Save "processing" message to DB with taskId
+            try {
+                const saveRes = await fetch("/api/chat/history", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        type: "video",
+                        text: processingMessage.text,
+                        sender: processingMessage.sender,
+                        timestamp: processingMessage.timestamp,
+                        taskId: data.taskId,
+                        status: "pending",
+                    }),
+                });
+
+                if (saveRes.ok) {
+                    const savedMsg = await saveRes.json();
+                    // Update local message with real DB ID if needed, but tempId is fine for now.
+                    // Actually, we should update the local message to have the DB ID so we can update it later if we wanted to use ID.
+                    // But we use taskId for updates, so it's okay.
+                }
+            } catch (e) {
+                console.error("Failed to save pending message:", e);
+            }
+
             // Bắt đầu polling ngay với taskId
             setIsLoading(false);
 
-            // Polling function
-            const pollTaskStatus = async () => {
-                const TIMEOUT_MS = 5 * 60 * 1000; // 5 phút
-                const POLL_INTERVAL_MS = 3000; // 3 giây
-                const startTime = Date.now();
-                const maxChecks = Math.floor(TIMEOUT_MS / POLL_INTERVAL_MS);
-
-                // Helper function để extract video URL từ response
-                const extractVideoUrl = (obj: any): string | null => {
-                    // Kiểm tra resultUrls trực tiếp
-                    if (Array.isArray(obj?.resultUrls) && obj.resultUrls.length > 0) {
-                        return obj.resultUrls[0];
-                    }
-
-                    // Kiểm tra trong raw.data.resultJson
-                    try {
-                        const resultJson = obj?.raw?.data?.resultJson;
-                        if (resultJson) {
-                            const parsed = typeof resultJson === "string" ? JSON.parse(resultJson) : resultJson;
-                            if (Array.isArray(parsed?.resultUrls) && parsed.resultUrls.length > 0) {
-                                return parsed.resultUrls[0];
-                            }
-                        }
-                    } catch (e) {}
-
-                    // Kiểm tra các vị trí khác
-                    if (Array.isArray(obj?.raw?.resultUrls) && obj.raw.resultUrls.length > 0) {
-                        return obj.raw.resultUrls[0];
-                    }
-                    if (Array.isArray(obj?.data?.resultUrls) && obj.data.resultUrls.length > 0) {
-                        return obj.data.resultUrls[0];
-                    }
-
-                    return null;
-                };
-
-                // Polling loop
-                for (let i = 0; i < maxChecks; i++) {
-                    const elapsed = Date.now() - startTime;
-
-                    // Kiểm tra timeout
-                    if (elapsed >= TIMEOUT_MS) {
-                        setMessages((prev) =>
-                            prev.map((m) =>
-                                m.id === tempId
-                                    ? {
-                                          ...m,
-                                          text: "Lỗi: Quá trình tạo video vượt quá 5 phút. Vui lòng thử lại sau.",
-                                          processing: false,
-                                      }
-                                    : m
-                            )
-                        );
-                        setIsProcessing(false);
-
-                        // Save timeout error to DB
-                        fetch("/api/chat/history", {
-                            method: "POST",
-                            headers: { "Content-Type": "application/json" },
-                            body: JSON.stringify({
-                                type: "video",
-                                text: "Lỗi: Quá trình tạo video vượt quá 5 phút. Vui lòng thử lại sau.",
-                                sender: "bot",
-                                timestamp: new Date(),
-                            }),
-                        }).catch((e) => console.error("Failed to save timeout error:", e));
-
-                        return;
-                    }
-
-                    // Gọi API kiểm tra status
-                    try {
-                        const statusRes = await fetch(`/api/video/generate/status?taskId=${encodeURIComponent(data.taskId)}`);
-
-                        if (statusRes.ok) {
-                            const statusData = await statusRes.json();
-
-                            // Kiểm tra nếu có video
-                            const videoUrl = extractVideoUrl(statusData);
-                            if (videoUrl) {
-                                setMessages((prev) =>
-                                    prev.map((m) =>
-                                        m.id === tempId
-                                            ? {
-                                                  id: tempId,
-                                                  text: "Video đã tạo xong",
-                                                  media: { src: videoUrl, type: "video" },
-                                                  sender: "bot",
-                                                  timestamp: new Date(),
-                                              }
-                                            : m
-                                    )
-                                );
-                                setIsProcessing(false);
-
-                                // Save success message to DB
-                                fetch("/api/chat/history", {
-                                    method: "POST",
-                                    headers: { "Content-Type": "application/json" },
-                                    body: JSON.stringify({
-                                        type: "video",
-                                        text: "Video đã tạo xong",
-                                        sender: "bot",
-                                        timestamp: new Date(),
-                                        media: { src: videoUrl, type: "video" },
-                                    }),
-                                }).catch((e) => console.error("Failed to save success message:", e));
-
-                                return;
-                            }
-
-                            // Kiểm tra nếu failed
-                            if (statusData?.state === "fail" || statusData?.state === "failed") {
-                                const failMsg =
-                                    statusData?.raw?.data?.failMsg ||
-                                    statusData?.failMsg ||
-                                    statusData?.raw?.failMsg ||
-                                    "Quá trình tạo video thất bại. Vui lòng thử lại với mô tả khác.";
-
-                                setMessages((prev) =>
-                                    prev.map((m) =>
-                                        m.id === tempId
-                                            ? {
-                                                  ...m,
-                                                  text: `Lỗi: ${failMsg}`,
-                                                  processing: false,
-                                              }
-                                            : m
-                                    )
-                                );
-                                setIsProcessing(false);
-
-                                // Save failure error to DB
-                                fetch("/api/chat/history", {
-                                    method: "POST",
-                                    headers: { "Content-Type": "application/json" },
-                                    body: JSON.stringify({
-                                        type: "video",
-                                        text: `Lỗi: ${failMsg}`,
-                                        sender: "bot",
-                                        timestamp: new Date(),
-                                    }),
-                                }).catch((e) => console.error("Failed to save failure error:", e));
-
-                                return;
-                            }
-                        }
-                    } catch (err) {
-                        // Bỏ qua lỗi network, tiếp tục polling
-                    }
-
-                    // Chờ trước khi poll lần tiếp theo
-                    await new Promise((r) => setTimeout(r, POLL_INTERVAL_MS));
-                }
-
-                // Hết thời gian timeout
-                setMessages((prev) =>
-                    prev.map((m) =>
-                        m.id === tempId
-                            ? {
-                                  ...m,
-                                  text: "Lỗi: Quá trình tạo video vượt quá 5 phút. Vui lòng thử lại sau.",
-                                  processing: false,
-                              }
-                            : m
-                    )
-                );
-                setIsProcessing(false);
-            };
-
-            // Gọi polling function
-            pollTaskStatus().catch((err) => {
-                console.error("Polling error:", err);
-                setMessages((prev) =>
-                    prev.map((m) =>
-                        m.id === tempId
-                            ? {
-                                  ...m,
-                                  text: `Lỗi: ${err.message || "Lỗi khi poll task status"}`,
-                                  processing: false,
-                              }
-                            : m
-                    )
-                );
-                setIsProcessing(false);
-            });
+            // Call polling function
+            // Call polling function
         } catch (error: any) {
             console.error("Error sending message:", error);
             let friendly = (error && error.message) || "Không nhận được phản hồi từ dịch vụ.";

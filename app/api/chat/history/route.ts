@@ -74,6 +74,9 @@ export async function GET(req: NextRequest) {
                           type: msg.mediaType || "image",
                       }
                     : undefined,
+                taskId: (msg as any).taskId,
+                status: (msg as any).status,
+                failReason: (msg as any).failReason,
             })
         );
 
@@ -115,6 +118,9 @@ export async function POST(req: NextRequest) {
                 timestamp: new Date(timestamp || Date.now()),
                 mediaUrl: media?.src,
                 mediaType: media?.type,
+                taskId: body.taskId,
+                status: body.status,
+                failReason: body.failReason,
             },
         });
 
@@ -125,5 +131,42 @@ export async function POST(req: NextRequest) {
     } catch (error) {
         console.error("Failed to save message:", error);
         return NextResponse.json({ error: "Failed to save message" }, { status: 500 });
+    }
+}
+
+export async function PATCH(req: NextRequest) {
+    if (!checkAuth(req)) {
+        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    try {
+        const body = await req.json();
+        const { id, taskId, status, failReason, media, text } = body;
+
+        if (!id && !taskId) {
+            return NextResponse.json({ error: "Missing id or taskId" }, { status: 400 });
+        }
+
+        // Find the message first
+        const whereClause = id ? { id } : { taskId };
+
+        const updatedMessage = await prisma.chatMessage.updateMany({
+            where: whereClause,
+            data: {
+                status,
+                failReason,
+                mediaUrl: media?.src,
+                mediaType: media?.type,
+                text,
+            },
+        });
+
+        return NextResponse.json({
+            success: true,
+            updatedCount: updatedMessage.count,
+        });
+    } catch (error) {
+        console.error("Failed to update message:", error);
+        return NextResponse.json({ error: "Failed to update message" }, { status: 500 });
     }
 }
