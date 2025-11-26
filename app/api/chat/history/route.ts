@@ -77,6 +77,7 @@ export async function GET(req: NextRequest) {
                 taskId: (msg as any).taskId,
                 status: (msg as any).status,
                 failReason: (msg as any).failReason,
+                mediaList: (msg as any).mediaList,
             })
         );
 
@@ -121,6 +122,7 @@ export async function POST(req: NextRequest) {
                 taskId: body.taskId,
                 status: body.status,
                 failReason: body.failReason,
+                mediaList: body.mediaList,
             },
         });
 
@@ -141,7 +143,7 @@ export async function PATCH(req: NextRequest) {
 
     try {
         const body = await req.json();
-        const { id, taskId, status, failReason, media, text } = body;
+        const { id, taskId, status, failReason, media, mediaList, text } = body;
 
         if (!id && !taskId) {
             return NextResponse.json({ error: "Missing id or taskId" }, { status: 400 });
@@ -157,6 +159,7 @@ export async function PATCH(req: NextRequest) {
                 failReason,
                 mediaUrl: media?.src,
                 mediaType: media?.type,
+                mediaList: mediaList,
                 text,
             },
         });

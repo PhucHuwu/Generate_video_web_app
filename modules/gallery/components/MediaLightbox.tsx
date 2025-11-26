@@ -1,9 +1,10 @@
 "use client";
 
 import React, { useEffect } from "react";
-import { X, ChevronLeft, ChevronRight } from "lucide-react";
+import { X, ChevronLeft, ChevronRight, Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { MediaItem } from "../types";
+import { downloadMedia } from "@/modules/video/utils/media-utils";
 
 interface MediaLightboxProps {
     media: MediaItem[];
@@ -41,6 +42,17 @@ export function MediaLightbox({ media, currentIndex, onClose, onNavigate }: Medi
                 {/* Close Button */}
                 <Button variant="ghost" size="icon" className="absolute top-4 right-4 text-white hover:bg-white/20 z-10" onClick={onClose}>
                     <X className="h-6 w-6" />
+                </Button>
+
+                {/* Download Button */}
+                <Button
+                    variant="ghost"
+                    size="icon"
+                    className="absolute top-4 right-16 text-white hover:bg-white/20 z-10"
+                    onClick={() => downloadMedia(currentItem.mediaUrl, `image-${Date.now()}.png`)}
+                    title="Tải xuống"
+                >
+                    <Download className="h-6 w-6" />
                 </Button>
 
                 {/* Previous Button */}

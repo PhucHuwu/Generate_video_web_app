@@ -11,6 +11,8 @@ import { Message } from "@/modules/video/types";
 import { MessageList } from "@/modules/video/components/MessageList";
 import { InputArea } from "@/modules/video/components/InputArea";
 import { GallerySidebar } from "@/modules/gallery/components/GallerySidebar";
+import { MediaLightbox } from "@/modules/gallery/components/MediaLightbox";
+import { MediaItem } from "@/modules/gallery/types";
 
 export function ImageChatContainer() {
     const router = useRouter();
@@ -27,6 +29,8 @@ export function ImageChatContainer() {
     const [isLoadingMore, setIsLoadingMore] = useState(false);
     const [oldestCursor, setOldestCursor] = useState<string | null>(null);
     const [isGalleryOpen, setIsGalleryOpen] = useState(false);
+    const [lightboxMedia, setLightboxMedia] = useState<MediaItem[]>([]);
+    const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
 
     useEffect(() => {
         const fetchHistory = async () => {
@@ -39,6 +43,7 @@ export function ImageChatContainer() {
                             data.messages.map((m: any) => ({
                                 ...m,
                                 timestamp: new Date(m.timestamp),
+                                processing: m.status === "pending",
                             }))
                         );
                         setHasMoreHistory(data.hasMore || false);
@@ -122,7 +127,7 @@ export function ImageChatContainer() {
                 headers: {
                     "Content-Type": "application/json",
                 },
-                body: JSON.stringify({ prompt: promptText }),
+                body: JSON.stringify({ prompt: promptText, n: 4 }),
             });
 
             if (!response.ok) {
@@ -132,38 +137,34 @@ export function ImageChatContainer() {
 
             const data = await response.json();
 
-            // Create bot message with generated image
-            const botMessage: Message = {
-                id: (Date.now() + 2).toString(),
-                text: data.revisedPrompt || promptText,
-                sender: "bot",
-                timestamp: new Date(),
-                media: data.imageUrl
-                    ? {
-                          type: "image",
-                          src: data.imageUrl,
-                      }
-                    : undefined,
-            };
-
-            // Thay thế processing message bằng kết quả
-            setMessages((prev) => prev.map((m) => (m.id === tempId ? botMessage : m)));
+            // Replace processing message with the real message from DB (returned by API)
+            if (data.message) {
+                const botMessage: Message = {
+                    ...data.message,
+                    timestamp: new Date(data.message.timestamp),
+                    processing: false,
+                };
+                setMessages((prev) => prev.map((m) => (m.id === tempId ? botMessage : m)));
+            } else {
+                // Fallback if API doesn't return message object
+                const botMessage: Message = {
+                    id: (Date.now() + 2).toString(),
+                    text: data.revisedPrompt || promptText,
+                    sender: "bot",
+                    timestamp: new Date(),
+                    media: data.imageUrl
+                        ? {
+                              type: "image",
+                              src: data.imageUrl,
+                          }
+                        : undefined,
+                    mediaList: data.imageUrls ? data.imageUrls.map((url: string) => ({ type: "image", src: url })) : undefined,
+                };
+                setMessages((prev) => prev.map((m) => (m.id === tempId ? botMessage : m)));
+            }
 
             // Scroll to show the generated image
             setTimeout(scrollToBottom, 100);
-
-            // Save bot message to DB
-            fetch("/api/chat/history", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    type: "image",
-                    text: botMessage.text,
-                    sender: botMessage.sender,
-                    timestamp: botMessage.timestamp,
-                    media: botMessage.media,
-                }),
-            }).catch((e) => console.error("Failed to save bot message:", e));
         } catch (error: any) {
             console.error("Image generation error:", error);
             // Update processing message to error
@@ -178,18 +179,6 @@ export function ImageChatContainer() {
 
             // Scroll to show error message
             setTimeout(scrollToBottom, 100);
-
-            // Save error message to DB (optional)
-            fetch("/api/chat/history", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    type: "image",
-                    text: errorMessage.text,
-                    sender: errorMessage.sender,
-                    timestamp: errorMessage.timestamp,
-                }),
-            }).catch((e) => console.error("Failed to save error message:", e));
         } finally {
             setIsLoading(false);
         }
@@ -262,6 +251,24 @@ export function ImageChatContainer() {
         router.replace("/login");
     };
 
+    const handleViewImage = (mediaList: { type: "image" | "video"; src: string }[], index: number) => {
+        // Map mediaList to MediaItem[]
+        const items: MediaItem[] = mediaList.map((item, idx) => ({
+            id: `view-${Date.now()}-${idx}`,
+            mediaUrl: item.src,
+            mediaType: item.type as "image" | "video",
+            text: "", // We don't have per-image text here easily, could use message text if passed
+            timestamp: new Date(),
+        }));
+        setLightboxMedia(items);
+        setLightboxIndex(index);
+    };
+
+    const handleCloseLightbox = () => {
+        setLightboxIndex(null);
+        setLightboxMedia([]);
+    };
+
     return (
         <div className="flex flex-row h-screen bg-background">
             <GallerySidebar type="image" isOpen={isGalleryOpen} onToggle={() => setIsGalleryOpen(!isGalleryOpen)} />
@@ -316,6 +323,7 @@ export function ImageChatContainer() {
                             hasMoreHistory={hasMoreHistory}
                             isLoadingMore={isLoadingMore}
                             onLoadMore={loadMoreHistory}
+                            onViewImage={handleViewImage}
                         />
                     </div>
                 </div>
@@ -340,6 +348,9 @@ export function ImageChatContainer() {
                     onCancel={() => setIsLogoutConfirmOpen(false)}
                 />
             </div>
+            {lightboxIndex !== null && (
+                <MediaLightbox media={lightboxMedia} currentIndex={lightboxIndex} onClose={handleCloseLightbox} onNavigate={setLightboxIndex} />
+            )}
         </div>
     );
 }

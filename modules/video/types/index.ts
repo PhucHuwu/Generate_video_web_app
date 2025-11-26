@@ -10,6 +10,10 @@ export interface Message {
         src: string;
         type: "video" | "image" | "unknown";
     };
+    mediaList?: {
+        type: "image";
+        src: string;
+    }[];
     sender: "user" | "bot";
     timestamp: Date;
     // taskId for retry/manual polling

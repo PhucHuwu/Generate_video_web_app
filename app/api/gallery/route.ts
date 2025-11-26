@@ -52,18 +52,37 @@ export async function GET(req: NextRequest) {
                 text: true,
                 mediaUrl: true,
                 mediaType: true,
+                mediaList: true,
                 timestamp: true,
             },
         });
 
-        // Map to MediaItem format
-        const media = messages.map((msg: { id: string; text: string; mediaUrl: string | null; mediaType: string | null; timestamp: Date }) => ({
-            id: msg.id,
-            mediaUrl: msg.mediaUrl!,
-            mediaType: msg.mediaType || type,
-            text: msg.text,
-            timestamp: msg.timestamp,
-        }));
+        // Map to MediaItem format and flatten mediaList
+        const media: any[] = [];
+
+        messages.forEach((msg: any) => {
+            if (msg.mediaList && Array.isArray(msg.mediaList) && msg.mediaList.length > 0) {
+                // If mediaList exists, add all items
+                msg.mediaList.forEach((item: any, index: number) => {
+                    media.push({
+                        id: `${msg.id}-${index}`, // Unique ID for gallery item
+                        mediaUrl: item.src,
+                        mediaType: "image", // mediaList items are currently only images
+                        text: msg.text,
+                        timestamp: msg.timestamp,
+                    });
+                });
+            } else if (msg.mediaUrl) {
+                // Fallback to single mediaUrl
+                media.push({
+                    id: msg.id,
+                    mediaUrl: msg.mediaUrl,
+                    mediaType: msg.mediaType || type,
+                    text: msg.text,
+                    timestamp: msg.timestamp,
+                });
+            }
+        });
 
         return NextResponse.json({ media });
     } catch (error) {

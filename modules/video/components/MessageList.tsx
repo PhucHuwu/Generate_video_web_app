@@ -8,9 +8,10 @@ interface MessageListProps {
     hasMoreHistory?: boolean;
     isLoadingMore?: boolean;
     onLoadMore?: () => void;
+    onViewImage?: (mediaList: { type: "image" | "video"; src: string }[], index: number) => void;
 }
 
-export function MessageList({ messages, messagesEndRef, hasMoreHistory, isLoadingMore, onLoadMore }: MessageListProps) {
+export function MessageList({ messages, messagesEndRef, hasMoreHistory, isLoadingMore, onLoadMore, onViewImage }: MessageListProps) {
     return (
         <div className="flex-1 overflow-y-auto p-4 space-y-6 scroll-smooth">
             {hasMoreHistory && onLoadMore && (
@@ -34,7 +35,7 @@ export function MessageList({ messages, messagesEndRef, hasMoreHistory, isLoadin
                     <p className="max-w-xs text-sm">Tải lên một bức ảnh và nhập mô tả để bắt đầu tạo video.</p>
                 </div>
             ) : (
-                messages.map((message) => <MessageItem key={message.id} message={message} />)
+                messages.map((message) => <MessageItem key={message.id} message={message} onViewImage={onViewImage} />)
             )}
             <div ref={messagesEndRef} />
         </div>

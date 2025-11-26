@@ -6,6 +6,7 @@ export interface GenerateImageInput {
 
 export interface GenerateImageResult {
     url?: string;
+    urls?: string[];
     b64_json?: string;
     revised_prompt?: string;
 }
@@ -52,14 +53,17 @@ export async function generateImage(input: GenerateImageInput): Promise<Generate
 
     const data = await response.json();
 
-    // Extract first image from response
-    const firstImage = data.data?.[0];
+    // Extract all images from response
+    const images = data.data || [];
+    const firstImage = images[0];
+
     if (!firstImage) {
         throw new Error("No image data returned from Grok API");
     }
 
     return {
         url: firstImage.url,
+        urls: images.map((img: any) => img.url).filter(Boolean),
         b64_json: firstImage.b64_json,
         revised_prompt: firstImage.revised_prompt,
     };
