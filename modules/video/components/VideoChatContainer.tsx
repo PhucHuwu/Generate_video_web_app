@@ -3,7 +3,7 @@
 import React, { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { Sun, Moon, Settings as SettingsIcon, Trash, AlertTriangle, LogOut } from "lucide-react";
+import { Sun, Moon, Settings as SettingsIcon, Trash, AlertTriangle, LogOut, LayoutGrid } from "lucide-react";
 import { useTheme } from "@/components/theme-toggle-provider";
 import { cn } from "@/lib/utils";
 import { ModeToggle } from "@/components/ui/mode-toggle";
@@ -12,6 +12,7 @@ import { Message, Settings } from "@/modules/video/types";
 import { MessageList } from "./MessageList";
 import { InputArea } from "./InputArea";
 import { SettingsDialog } from "./SettingsDialog";
+import { GallerySidebar } from "@/modules/gallery/components/GallerySidebar";
 
 export function VideoChatContainer() {
     const router = useRouter();
@@ -45,6 +46,7 @@ export function VideoChatContainer() {
     const [hasMoreHistory, setHasMoreHistory] = useState(false);
     const [isLoadingMore, setIsLoadingMore] = useState(false);
     const [oldestCursor, setOldestCursor] = useState<string | null>(null);
+    const [isGalleryOpen, setIsGalleryOpen] = useState(false);
 
     useEffect(() => {
         (async () => {
@@ -735,153 +737,165 @@ export function VideoChatContainer() {
     };
 
     return (
-        <div className="flex flex-col h-screen bg-background">
-            <header id="chat-header" className="border-b border-border bg-card p-4">
-                <div className="w-full flex items-center justify-between">
-                    <div className="flex items-center gap-0 md:gap-4">
-                        <div>
-                            <h1 className="text-2xl font-bold text-foreground hidden md:block">Chatbot tạo Video/Ảnh</h1>
-                            <p className="text-sm text-muted-foreground hidden md:block">Tạo video từ mô tả văn bản và ảnh</p>
+        <div className="flex flex-row h-screen bg-background">
+            <GallerySidebar type="video" isOpen={isGalleryOpen} onToggle={() => setIsGalleryOpen(!isGalleryOpen)} />
+            <div className="flex flex-col flex-1 h-screen">
+                <header id="chat-header" className="border-b border-border bg-card p-4">
+                    <div className="w-full flex items-center justify-between">
+                        <div className="flex items-center gap-0 md:gap-4">
+                            <div>
+                                <h1 className="text-2xl font-bold text-foreground hidden md:block">Chatbot tạo Video/Ảnh</h1>
+                                <p className="text-sm text-muted-foreground hidden md:block">Tạo video từ mô tả văn bản và ảnh</p>
+                            </div>
+                            <ModeToggle currentMode="video" onToggle={() => router.push("/image")} />
                         </div>
-                        <ModeToggle currentMode="video" onToggle={() => router.push("/image")} />
-                    </div>
-                    <div className="flex items-center gap-2">
-                        <Button
-                            id="btn-fetch-credits"
-                            size="sm"
-                            variant="ghost"
-                            onClick={fetchCredits}
-                            disabled={isFetchingCredits}
-                            title={creditsError ? `Lỗi: ${creditsError}` : "Lấy số dư hiện tại"}
-                        >
-                            <span className="text-sm">
-                                {isFetchingCredits ? (
-                                    <span className="inline-flex items-center gap-1">
-                                        <span className="w-2 h-2 rounded-full bg-muted-foreground animate-bounce" />
-                                        <span>...</span>
-                                    </span>
-                                ) : credits === null ? (
-                                    <span>-</span>
-                                ) : (
-                                    <span className="inline-flex items-center gap-1">
-                                        {(() => {
-                                            const remainingVideos = Math.floor(credits / (settings.duration === "5" ? 42 : 84));
-                                            const isLowCredits = remainingVideos <= 3;
-                                            return (
-                                                <>
-                                                    {isLowCredits && (
-                                                        <AlertTriangle className="w-4 h-4 text-amber-500 shrink-0" aria-label="Cảnh báo: Credits thấp" />
-                                                    )}
-                                                    <span className="tabular-nums">{credits}</span>
-                                                    <span className="hidden sm:inline">credits</span>
-                                                    <span
-                                                        className={cn(
-                                                            "hidden md:inline",
-                                                            isLowCredits ? "text-amber-500 font-medium" : "text-muted-foreground"
+                        <div className="flex items-center gap-2">
+                            <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => setIsGalleryOpen(!isGalleryOpen)}
+                                className="lg:hidden"
+                                title={isGalleryOpen ? "Ẩn gallery" : "Hiện gallery"}
+                            >
+                                <LayoutGrid className="h-4 w-4" />
+                            </Button>
+                            <Button
+                                id="btn-fetch-credits"
+                                size="sm"
+                                variant="ghost"
+                                onClick={fetchCredits}
+                                disabled={isFetchingCredits}
+                                title={creditsError ? `Lỗi: ${creditsError}` : "Lấy số dư hiện tại"}
+                            >
+                                <span className="text-sm">
+                                    {isFetchingCredits ? (
+                                        <span className="inline-flex items-center gap-1">
+                                            <span className="w-2 h-2 rounded-full bg-muted-foreground animate-bounce" />
+                                            <span>...</span>
+                                        </span>
+                                    ) : credits === null ? (
+                                        <span>-</span>
+                                    ) : (
+                                        <span className="inline-flex items-center gap-1">
+                                            {(() => {
+                                                const remainingVideos = Math.floor(credits / (settings.duration === "5" ? 42 : 84));
+                                                const isLowCredits = remainingVideos <= 3;
+                                                return (
+                                                    <>
+                                                        {isLowCredits && (
+                                                            <AlertTriangle className="w-4 h-4 text-amber-500 shrink-0" aria-label="Cảnh báo: Credits thấp" />
                                                         )}
-                                                    >
-                                                        ({remainingVideos} video)
-                                                    </span>
-                                                </>
-                                            );
-                                        })()}
-                                    </span>
-                                )}
-                            </span>
-                        </Button>
+                                                        <span className="tabular-nums">{credits}</span>
+                                                        <span className="hidden sm:inline">credits</span>
+                                                        <span
+                                                            className={cn(
+                                                                "hidden md:inline",
+                                                                isLowCredits ? "text-amber-500 font-medium" : "text-muted-foreground"
+                                                            )}
+                                                        >
+                                                            ({remainingVideos} video)
+                                                        </span>
+                                                    </>
+                                                );
+                                            })()}
+                                        </span>
+                                    )}
+                                </span>
+                            </Button>
 
-                        <Button
-                            id="btn-theme-toggle"
-                            size="sm"
-                            variant="ghost"
-                            onClick={toggleTheme}
-                            title={theme === "light" ? "Chuyển sang chế độ tối" : "Chuyển sang chế độ sáng"}
-                        >
-                            {theme === "light" ? <Moon className="h-4 w-4" /> : <Sun className="h-4 w-4" />}
-                        </Button>
-                        <Button id="btn-settings" size="sm" variant="ghost" onClick={() => setIsSettingsOpen(true)} title="Cài đặt">
-                            <SettingsIcon className="h-4 w-4" />
-                        </Button>
-                        <Button
-                            id="btn-clear-history"
-                            size="sm"
-                            variant="ghost"
-                            onClick={clearHistory}
-                            disabled={messages.length === 0 || isLoading || isProcessing}
-                            title="Xóa lịch sử chat"
-                        >
-                            <Trash className="h-4 w-4" />
-                        </Button>
-                        <Button
-                            id="btn-logout"
-                            size="sm"
-                            variant="ghost"
-                            onClick={() => setIsLogoutConfirmOpen(true)}
-                            disabled={isLoading || isProcessing}
-                            title={isLoading || isProcessing ? "Không thể đăng xuất khi đang tạo video" : "Đăng xuất"}
-                            className="gap-1.5"
-                        >
-                            <LogOut className="h-4 w-4" />
-                            <span className="hidden sm:inline">Đăng xuất</span>
-                        </Button>
+                            <Button
+                                id="btn-theme-toggle"
+                                size="sm"
+                                variant="ghost"
+                                onClick={toggleTheme}
+                                title={theme === "light" ? "Chuyển sang chế độ tối" : "Chuyển sang chế độ sáng"}
+                            >
+                                {theme === "light" ? <Moon className="h-4 w-4" /> : <Sun className="h-4 w-4" />}
+                            </Button>
+                            <Button id="btn-settings" size="sm" variant="ghost" onClick={() => setIsSettingsOpen(true)} title="Cài đặt">
+                                <SettingsIcon className="h-4 w-4" />
+                            </Button>
+                            <Button
+                                id="btn-clear-history"
+                                size="sm"
+                                variant="ghost"
+                                onClick={clearHistory}
+                                disabled={messages.length === 0 || isLoading || isProcessing}
+                                title="Xóa lịch sử chat"
+                            >
+                                <Trash className="h-4 w-4" />
+                            </Button>
+                            <Button
+                                id="btn-logout"
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => setIsLogoutConfirmOpen(true)}
+                                disabled={isLoading || isProcessing}
+                                title={isLoading || isProcessing ? "Không thể đăng xuất khi đang tạo video" : "Đăng xuất"}
+                                className="gap-1.5"
+                            >
+                                <LogOut className="h-4 w-4" />
+                                <span className="hidden sm:inline">Đăng xuất</span>
+                            </Button>
+                        </div>
                     </div>
-                </div>
-            </header>
+                </header>
 
-            <main id="chat-messages-container" className="flex-1 overflow-y-auto">
-                <div className="max-w-4xl mx-auto h-full flex flex-col">
-                    <MessageList
-                        messages={messages}
-                        messagesEndRef={messagesEndRef}
-                        hasMoreHistory={hasMoreHistory}
-                        isLoadingMore={isLoadingMore}
-                        onLoadMore={loadMoreHistory}
-                    />
-                </div>
-            </main>
+                <main id="chat-messages-container" className="flex-1 overflow-y-auto">
+                    <div className="max-w-4xl mx-auto h-full flex flex-col">
+                        <MessageList
+                            messages={messages}
+                            messagesEndRef={messagesEndRef}
+                            hasMoreHistory={hasMoreHistory}
+                            isLoadingMore={isLoadingMore}
+                            onLoadMore={loadMoreHistory}
+                        />
+                    </div>
+                </main>
 
-            <InputArea
-                input={input}
-                setInput={setInput}
-                uploadedImage={uploadedImage}
-                onImageUpload={handleImageUpload}
-                onClearImage={() => {
-                    setUploadedImage(null);
-                    if (fileInputRef.current) fileInputRef.current.value = "";
-                }}
-                onSend={handleSendMessage}
-                isLoading={isLoading}
-                isUploadingImage={isUploadingImage}
-                isGeneratingPrompt={isGeneratingPrompt}
-                onGeneratePrompt={handleGeneratePrompt}
-                onSettingsClick={() => setIsSettingsOpen(true)}
-                fileInputRef={fileInputRef}
-                textareaRef={textareaRef}
-                credits={credits}
-            />
+                <InputArea
+                    input={input}
+                    setInput={setInput}
+                    uploadedImage={uploadedImage}
+                    onImageUpload={handleImageUpload}
+                    onClearImage={() => {
+                        setUploadedImage(null);
+                        if (fileInputRef.current) fileInputRef.current.value = "";
+                    }}
+                    onSend={handleSendMessage}
+                    isLoading={isLoading}
+                    isUploadingImage={isUploadingImage}
+                    isGeneratingPrompt={isGeneratingPrompt}
+                    onGeneratePrompt={handleGeneratePrompt}
+                    onSettingsClick={() => setIsSettingsOpen(true)}
+                    fileInputRef={fileInputRef}
+                    textareaRef={textareaRef}
+                    credits={credits}
+                />
 
-            <SettingsDialog isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} settings={settings} onSave={handleSaveSettings} />
+                <SettingsDialog isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} settings={settings} onSave={handleSaveSettings} />
 
-            <NativeConfirm
-                id="modal-confirm-clear-history"
-                open={isConfirmOpen}
-                title="Xóa lịch sử chat"
-                description="Bạn có chắc muốn xóa toàn bộ lịch sử chat? Hành động này không thể hoàn tác."
-                confirmLabel="Xóa"
-                cancelLabel="Hủy"
-                onConfirm={doClearHistory}
-                onCancel={() => setIsConfirmOpen(false)}
-            />
-            <NativeConfirm
-                id="modal-confirm-logout"
-                open={isLogoutConfirmOpen}
-                title="Đăng xuất"
-                description="Bạn có chắc muốn đăng xuất khỏi tài khoản hiện tại? Bạn sẽ cần đăng nhập lại để tiếp tục."
-                confirmLabel="Đăng xuất"
-                cancelLabel="Hủy"
-                onConfirm={doLogout}
-                onCancel={() => setIsLogoutConfirmOpen(false)}
-            />
+                <NativeConfirm
+                    id="modal-confirm-clear-history"
+                    open={isConfirmOpen}
+                    title="Xóa lịch sử chat"
+                    description="Bạn có chắc muốn xóa toàn bộ lịch sử chat? Hành động này không thể hoàn tác."
+                    confirmLabel="Xóa"
+                    cancelLabel="Hủy"
+                    onConfirm={doClearHistory}
+                    onCancel={() => setIsConfirmOpen(false)}
+                />
+                <NativeConfirm
+                    id="modal-confirm-logout"
+                    open={isLogoutConfirmOpen}
+                    title="Đăng xuất"
+                    description="Bạn có chắc muốn đăng xuất khỏi tài khoản hiện tại? Bạn sẽ cần đăng nhập lại để tiếp tục."
+                    confirmLabel="Đăng xuất"
+                    cancelLabel="Hủy"
+                    onConfirm={doLogout}
+                    onCancel={() => setIsLogoutConfirmOpen(false)}
+                />
+            </div>
         </div>
     );
 }

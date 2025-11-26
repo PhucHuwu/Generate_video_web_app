@@ -3,13 +3,14 @@
 import React, { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { Sun, Moon, Trash, LogOut } from "lucide-react";
+import { Sun, Moon, Trash, LogOut, LayoutGrid } from "lucide-react";
 import { useTheme } from "@/components/theme-toggle-provider";
 import { ModeToggle } from "@/components/ui/mode-toggle";
 import NativeConfirm from "@/components/ui/native-confirm";
 import { Message } from "@/modules/video/types";
 import { MessageList } from "@/modules/video/components/MessageList";
 import { InputArea } from "@/modules/video/components/InputArea";
+import { GallerySidebar } from "@/modules/gallery/components/GallerySidebar";
 
 export function ImageChatContainer() {
     const router = useRouter();
@@ -26,6 +27,7 @@ export function ImageChatContainer() {
     const [hasMoreHistory, setHasMoreHistory] = useState(false);
     const [isLoadingMore, setIsLoadingMore] = useState(false);
     const [oldestCursor, setOldestCursor] = useState<string | null>(null);
+    const [isGalleryOpen, setIsGalleryOpen] = useState(false);
 
     useEffect(() => {
         const fetchHistory = async () => {
@@ -274,83 +276,95 @@ export function ImageChatContainer() {
     };
 
     return (
-        <div className="flex flex-col h-screen bg-background">
-            <header className="border-b border-border bg-card p-4">
-                <div className="w-full flex items-center justify-between">
-                    <div className="flex items-center gap-0 md:gap-4">
-                        <div>
-                            <h1 className="text-2xl font-bold text-foreground hidden md:block">Chatbot tạo Video/Ảnh</h1>
-                            <p className="text-sm text-muted-foreground hidden md:block">Tạo ảnh từ mô tả văn bản</p>
+        <div className="flex flex-row h-screen bg-background">
+            <GallerySidebar type="image" isOpen={isGalleryOpen} onToggle={() => setIsGalleryOpen(!isGalleryOpen)} />
+            <div className="flex flex-col flex-1 h-screen">
+                <header className="border-b border-border bg-card p-4">
+                    <div className="w-full flex items-center justify-between">
+                        <div className="flex items-center gap-0 md:gap-4">
+                            <div>
+                                <h1 className="text-2xl font-bold text-foreground hidden md:block">Chatbot tạo Video/Ảnh</h1>
+                                <p className="text-sm text-muted-foreground hidden md:block">Tạo ảnh từ mô tả văn bản</p>
+                            </div>
+                            <ModeToggle currentMode="image" onToggle={() => router.push("/")} />
                         </div>
-                        <ModeToggle currentMode="image" onToggle={() => router.push("/")} />
+                        <div className="flex items-center gap-2">
+                            <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => setIsGalleryOpen(!isGalleryOpen)}
+                                className="lg:hidden"
+                                title={isGalleryOpen ? "Ẩn gallery" : "Hiện gallery"}
+                            >
+                                <LayoutGrid className="h-4 w-4" />
+                            </Button>
+                            <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={toggleTheme}
+                                title={theme === "light" ? "Chuyển sang chế độ tối" : "Chuyển sang chế độ sáng"}
+                            >
+                                {theme === "light" ? <Moon className="h-4 w-4" /> : <Sun className="h-4 w-4" />}
+                            </Button>
+                            <Button size="sm" variant="ghost" onClick={clearHistory} disabled={messages.length === 0 || isLoading} title="Xóa lịch sử chat">
+                                <Trash className="h-4 w-4" />
+                            </Button>
+                            <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => setIsLogoutConfirmOpen(true)}
+                                disabled={isLoading}
+                                title={isLoading ? "Không thể đăng xuất khi đang tạo ảnh" : "Đăng xuất"}
+                                className="gap-1.5"
+                            >
+                                <LogOut className="h-4 w-4" />
+                                <span className="hidden sm:inline">Đăng xuất</span>
+                            </Button>
+                        </div>
                     </div>
-                    <div className="flex items-center gap-2">
-                        <Button
-                            size="sm"
-                            variant="ghost"
-                            onClick={toggleTheme}
-                            title={theme === "light" ? "Chuyển sang chế độ tối" : "Chuyển sang chế độ sáng"}
-                        >
-                            {theme === "light" ? <Moon className="h-4 w-4" /> : <Sun className="h-4 w-4" />}
-                        </Button>
-                        <Button size="sm" variant="ghost" onClick={clearHistory} disabled={messages.length === 0 || isLoading} title="Xóa lịch sử chat">
-                            <Trash className="h-4 w-4" />
-                        </Button>
-                        <Button
-                            size="sm"
-                            variant="ghost"
-                            onClick={() => setIsLogoutConfirmOpen(true)}
-                            disabled={isLoading}
-                            title={isLoading ? "Không thể đăng xuất khi đang tạo ảnh" : "Đăng xuất"}
-                            className="gap-1.5"
-                        >
-                            <LogOut className="h-4 w-4" />
-                            <span className="hidden sm:inline">Đăng xuất</span>
-                        </Button>
-                    </div>
-                </div>
-            </header>
+                </header>
 
-            <div className="flex-1 overflow-y-auto">
-                <div className="max-w-4xl mx-auto h-full flex flex-col">
-                    <MessageList
-                        messages={messages}
-                        messagesEndRef={messagesEndRef}
-                        hasMoreHistory={hasMoreHistory}
-                        isLoadingMore={isLoadingMore}
-                        onLoadMore={loadMoreHistory}
-                    />
+                <div className="flex-1 overflow-y-auto">
+                    <div className="max-w-4xl mx-auto h-full flex flex-col">
+                        <MessageList
+                            messages={messages}
+                            messagesEndRef={messagesEndRef}
+                            hasMoreHistory={hasMoreHistory}
+                            isLoadingMore={isLoadingMore}
+                            onLoadMore={loadMoreHistory}
+                        />
+                    </div>
                 </div>
+
+                <InputArea
+                    input={input}
+                    setInput={setInput}
+                    onSend={handleSendMessage}
+                    isLoading={isLoading}
+                    textareaRef={textareaRef}
+                    isGeneratingPrompt={isGeneratingPrompt}
+                    onRandomPrompt={handleRandomPrompt}
+                />
+
+                <NativeConfirm
+                    open={isConfirmOpen}
+                    title="Xóa lịch sử chat"
+                    description="Bạn có chắc muốn xóa toàn bộ lịch sử chat? Hành động này không thể hoàn tác."
+                    confirmLabel="Xóa"
+                    cancelLabel="Hủy"
+                    onConfirm={doClearHistory}
+                    onCancel={() => setIsConfirmOpen(false)}
+                />
+                <NativeConfirm
+                    open={isLogoutConfirmOpen}
+                    title="Đăng xuất"
+                    description="Bạn có chắc muốn đăng xuất khỏi tài khoản hiện tại? Bạn sẽ cần đăng nhập lại để tiếp tục."
+                    confirmLabel="Đăng xuất"
+                    cancelLabel="Hủy"
+                    onConfirm={doLogout}
+                    onCancel={() => setIsLogoutConfirmOpen(false)}
+                />
             </div>
-
-            <InputArea
-                input={input}
-                setInput={setInput}
-                onSend={handleSendMessage}
-                isLoading={isLoading}
-                textareaRef={textareaRef}
-                isGeneratingPrompt={isGeneratingPrompt}
-                onRandomPrompt={handleRandomPrompt}
-            />
-
-            <NativeConfirm
-                open={isConfirmOpen}
-                title="Xóa lịch sử chat"
-                description="Bạn có chắc muốn xóa toàn bộ lịch sử chat? Hành động này không thể hoàn tác."
-                confirmLabel="Xóa"
-                cancelLabel="Hủy"
-                onConfirm={doClearHistory}
-                onCancel={() => setIsConfirmOpen(false)}
-            />
-            <NativeConfirm
-                open={isLogoutConfirmOpen}
-                title="Đăng xuất"
-                description="Bạn có chắc muốn đăng xuất khỏi tài khoản hiện tại? Bạn sẽ cần đăng nhập lại để tiếp tục."
-                confirmLabel="Đăng xuất"
-                cancelLabel="Hủy"
-                onConfirm={doLogout}
-                onCancel={() => setIsLogoutConfirmOpen(false)}
-            />
         </div>
     );
 }
