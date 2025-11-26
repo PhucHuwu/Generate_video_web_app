@@ -24,35 +24,30 @@ export function ImageChatContainer() {
     const [isLogoutConfirmOpen, setIsLogoutConfirmOpen] = useState(false);
     const [hasLoadedHistory, setHasLoadedHistory] = useState(false);
 
-    const STORAGE_KEY = "chat_history_image_v1";
-
     useEffect(() => {
-        try {
-            const raw = localStorage.getItem(STORAGE_KEY);
-            if (raw) {
-                const parsed = JSON.parse(raw);
-                if (Array.isArray(parsed)) {
-                    const restored: Message[] = parsed.map((m) => ({
-                        ...m,
-                        timestamp: m.timestamp ? new Date(m.timestamp) : new Date(),
-                    }));
-                    setMessages(restored);
+        const fetchHistory = async () => {
+            try {
+                const res = await fetch("/api/chat/history?type=image");
+                if (res.ok) {
+                    const data = await res.json();
+                    if (Array.isArray(data)) {
+                        setMessages(
+                            data.map((m: any) => ({
+                                ...m,
+                                timestamp: new Date(m.timestamp),
+                            }))
+                        );
+                    }
                 }
+            } catch (error) {
+                console.error("Failed to load history:", error);
+            } finally {
+                setHasLoadedHistory(true);
             }
-        } catch (e) {}
-        setHasLoadedHistory(true);
-    }, []);
+        };
 
-    useEffect(() => {
-        if (!hasLoadedHistory) return;
-        try {
-            const toSave = messages.map((m) => ({
-                ...m,
-                timestamp: m.timestamp instanceof Date ? m.timestamp.toISOString() : m.timestamp,
-            }));
-            localStorage.setItem(STORAGE_KEY, JSON.stringify(toSave));
-        } catch (e) {}
-    }, [messages, hasLoadedHistory]);
+        fetchHistory();
+    }, []);
 
     const scrollToBottom = () => {
         messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -76,6 +71,18 @@ export function ImageChatContainer() {
         setMessages((prev) => [...prev, userMessage]);
         const promptText = input;
         setInput("");
+
+        // Save user message to DB
+        fetch("/api/chat/history", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                type: "image",
+                text: userMessage.text,
+                sender: userMessage.sender,
+                timestamp: userMessage.timestamp,
+            }),
+        }).catch((e) => console.error("Failed to save user message:", e));
 
         // Tạo processing message TRƯỚC KHI gọi API
         const tempId = (Date.now() + 1).toString();
@@ -122,6 +129,19 @@ export function ImageChatContainer() {
 
             // Thay thế processing message bằng kết quả
             setMessages((prev) => prev.map((m) => (m.id === tempId ? botMessage : m)));
+
+            // Save bot message to DB
+            fetch("/api/chat/history", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    type: "image",
+                    text: botMessage.text,
+                    sender: botMessage.sender,
+                    timestamp: botMessage.timestamp,
+                    media: botMessage.media,
+                }),
+            }).catch((e) => console.error("Failed to save bot message:", e));
         } catch (error: any) {
             console.error("Image generation error:", error);
             // Update processing message to error
@@ -133,6 +153,18 @@ export function ImageChatContainer() {
                 processing: false,
             };
             setMessages((prev) => prev.map((m) => (m.id === tempId ? errorMessage : m)));
+
+            // Save error message to DB (optional)
+            fetch("/api/chat/history", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    type: "image",
+                    text: errorMessage.text,
+                    sender: errorMessage.sender,
+                    timestamp: errorMessage.timestamp,
+                }),
+            }).catch((e) => console.error("Failed to save error message:", e));
         } finally {
             setIsLoading(false);
         }
@@ -170,7 +202,7 @@ export function ImageChatContainer() {
     const doClearHistory = () => {
         setMessages([]);
         try {
-            localStorage.removeItem(STORAGE_KEY);
+            fetch("/api/chat/history?type=image", { method: "DELETE" });
         } catch (e) {}
         setIsConfirmOpen(false);
     };

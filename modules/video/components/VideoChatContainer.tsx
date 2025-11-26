@@ -106,25 +106,28 @@ export function VideoChatContainer() {
 
     useEffect(() => {
         setIsClient(true);
-        try {
-            const raw = localStorage.getItem(STORAGE_KEY);
-            if (raw) {
-                const parsed = JSON.parse(raw);
-                if (Array.isArray(parsed)) {
-                    const restored: Message[] = parsed.map((m) => ({
-                        ...m,
-                        timestamp: m.timestamp ? new Date(m.timestamp) : new Date(),
-                    }));
-                    setMessages(restored);
-                } else {
-                    localStorage.removeItem(STORAGE_KEY);
-                }
-            }
-        } catch (e) {
+        const fetchHistory = async () => {
             try {
-                localStorage.removeItem(STORAGE_KEY);
-            } catch (removeErr) {}
-        }
+                const res = await fetch("/api/chat/history?type=video");
+                if (res.ok) {
+                    const data = await res.json();
+                    if (Array.isArray(data)) {
+                        setMessages(
+                            data.map((m: any) => ({
+                                ...m,
+                                timestamp: new Date(m.timestamp),
+                            }))
+                        );
+                    }
+                }
+            } catch (error) {
+                console.error("Failed to load history:", error);
+            } finally {
+                setHasLoadedHistory(true);
+            }
+        };
+
+        fetchHistory();
         try {
             const s = localStorage.getItem("api_keys_v1");
             if (s) {
@@ -135,21 +138,7 @@ export function VideoChatContainer() {
                 });
             }
         } catch (e) {}
-        setHasLoadedHistory(true);
     }, []);
-
-    useEffect(() => {
-        if (!hasLoadedHistory) return;
-        try {
-            const toSave = messages.map((m) => ({
-                ...m,
-                timestamp: m.timestamp instanceof Date ? m.timestamp.toISOString() : m.timestamp,
-            }));
-            localStorage.setItem(STORAGE_KEY, JSON.stringify(toSave));
-        } catch (e) {
-            console.warn("Failed to save chat history:", e);
-        }
-    }, [messages, hasLoadedHistory]);
 
     const handleSendMessage = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -186,6 +175,24 @@ export function VideoChatContainer() {
             : undefined;
         setUploadedImage(null);
         setInput("");
+
+        // Save user message to DB
+        fetch("/api/chat/history", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                type: "video",
+                text: userMessage.text,
+                sender: userMessage.sender,
+                timestamp: userMessage.timestamp,
+                media: userMessage.image
+                    ? {
+                          src: userMessage.image.src,
+                          type: "image",
+                      }
+                    : undefined,
+            }),
+        }).catch((e) => console.error("Failed to save user message:", e));
 
         // Tạo processing message TRƯỚC KHI gọi API để người dùng thấy ngay
         const tempId = (Date.now() + 1).toString();
@@ -265,6 +272,19 @@ export function VideoChatContainer() {
                 setMessages((prev) => prev.map((m) => (m.id === tempId ? botMessage : m)));
                 setIsLoading(false);
                 setIsProcessing(false);
+
+                // Save error message to DB
+                fetch("/api/chat/history", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        type: "video",
+                        text: botMessage.text,
+                        sender: botMessage.sender,
+                        timestamp: botMessage.timestamp,
+                    }),
+                }).catch((e) => console.error("Failed to save error message:", e));
+
                 return;
             }
 
@@ -341,6 +361,19 @@ export function VideoChatContainer() {
                             )
                         );
                         setIsProcessing(false);
+
+                        // Save timeout error to DB
+                        fetch("/api/chat/history", {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({
+                                type: "video",
+                                text: "Lỗi: Quá trình tạo video vượt quá 5 phút. Vui lòng thử lại sau.",
+                                sender: "bot",
+                                timestamp: new Date(),
+                            }),
+                        }).catch((e) => console.error("Failed to save timeout error:", e));
+
                         return;
                     }
 
@@ -368,6 +401,20 @@ export function VideoChatContainer() {
                                     )
                                 );
                                 setIsProcessing(false);
+
+                                // Save success message to DB
+                                fetch("/api/chat/history", {
+                                    method: "POST",
+                                    headers: { "Content-Type": "application/json" },
+                                    body: JSON.stringify({
+                                        type: "video",
+                                        text: "Video đã tạo xong",
+                                        sender: "bot",
+                                        timestamp: new Date(),
+                                        media: { src: videoUrl, type: "video" },
+                                    }),
+                                }).catch((e) => console.error("Failed to save success message:", e));
+
                                 return;
                             }
 
@@ -391,6 +438,19 @@ export function VideoChatContainer() {
                                     )
                                 );
                                 setIsProcessing(false);
+
+                                // Save failure error to DB
+                                fetch("/api/chat/history", {
+                                    method: "POST",
+                                    headers: { "Content-Type": "application/json" },
+                                    body: JSON.stringify({
+                                        type: "video",
+                                        text: `Lỗi: ${failMsg}`,
+                                        sender: "bot",
+                                        timestamp: new Date(),
+                                    }),
+                                }).catch((e) => console.error("Failed to save failure error:", e));
+
                                 return;
                             }
                         }
@@ -589,7 +649,7 @@ export function VideoChatContainer() {
     const doClearHistory = () => {
         setMessages([]);
         try {
-            localStorage.removeItem(STORAGE_KEY);
+            fetch("/api/chat/history?type=video", { method: "DELETE" });
         } catch (e) {}
         setHasLoadedHistory(true);
         setIsConfirmOpen(false);
