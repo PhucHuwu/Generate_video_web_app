@@ -3,7 +3,24 @@ import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
 
+function checkAuth(req: NextRequest) {
+    const cookie = req.cookies.get("auth_ts");
+    if (!cookie) return false;
+
+    const ts = parseInt(cookie.value, 10);
+    if (isNaN(ts)) return false;
+
+    const SESSION_MS = 4 * 60 * 60 * 1000; // 4 hours
+    if (Date.now() - ts > SESSION_MS) return false;
+
+    return true;
+}
+
 export async function GET(req: NextRequest) {
+    if (!checkAuth(req)) {
+        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     const { searchParams } = new URL(req.url);
     const type = searchParams.get("type");
 
@@ -39,6 +56,10 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
+    if (!checkAuth(req)) {
+        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     try {
         const body = await req.json();
         const { type, text, sender, media, timestamp } = body;
@@ -69,6 +90,10 @@ export async function POST(req: NextRequest) {
 }
 
 export async function DELETE(req: NextRequest) {
+    if (!checkAuth(req)) {
+        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     const { searchParams } = new URL(req.url);
     const type = searchParams.get("type");
 
