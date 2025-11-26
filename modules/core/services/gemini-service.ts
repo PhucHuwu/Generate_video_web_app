@@ -1,6 +1,6 @@
 import { GoogleGenAI, Part } from "@google/genai";
 import DESCRIBE_IMAGE_PROMPT from "./describe-prompt";
-import { callOpenRouterFallback } from "./openrouter-service";
+import { callOpenRouterFallback } from "./openrouter-describe.service";
 
 /**
  * Fetch an image from a public URL and convert to a Generative Part for Gemini.

@@ -14,6 +14,7 @@ interface InputAreaProps {
     isUploadingImage?: boolean;
     isGeneratingPrompt?: boolean;
     onGeneratePrompt?: () => void;
+    onRandomPrompt?: () => void;
     onSettingsClick?: () => void;
     fileInputRef?: React.RefObject<HTMLInputElement | null>;
     textareaRef: React.RefObject<HTMLTextAreaElement | null>;
@@ -31,6 +32,7 @@ export function InputArea({
     isUploadingImage,
     isGeneratingPrompt,
     onGeneratePrompt,
+    onRandomPrompt,
     onSettingsClick,
     fileInputRef,
     textareaRef,
@@ -130,6 +132,19 @@ export function InputArea({
                                 size="sm"
                                 className="absolute right-2 top-2 h-8 gap-1.5 text-xs bg-gradient-to-r from-[#8AB4F8] via-[#C58AF9] to-[#F48FB1] text-white hover:opacity-90 disabled:opacity-50"
                                 onClick={onGeneratePrompt}
+                                disabled={isGeneratingPrompt || isLoading}
+                            >
+                                <Sparkles className="h-3 w-3" />
+                                {isGeneratingPrompt ? "Đang tạo..." : "Gen Prompt"}
+                            </Button>
+                        )}
+                        {!uploadedImage && !input && onRandomPrompt && (
+                            <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                className="absolute right-2 top-2 h-8 gap-1.5 text-xs bg-gradient-to-r from-[#8AB4F8] via-[#C58AF9] to-[#F48FB1] text-white hover:opacity-90 disabled:opacity-50"
+                                onClick={onRandomPrompt}
                                 disabled={isGeneratingPrompt || isLoading}
                             >
                                 <Sparkles className="h-3 w-3" />

@@ -19,6 +19,7 @@ export function ImageChatContainer() {
     const [isLoading, setIsLoading] = useState(false);
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const textareaRef = useRef<HTMLTextAreaElement>(null);
+    const [isGeneratingPrompt, setIsGeneratingPrompt] = useState(false);
     const [isConfirmOpen, setIsConfirmOpen] = useState(false);
     const [isLogoutConfirmOpen, setIsLogoutConfirmOpen] = useState(false);
     const [hasLoadedHistory, setHasLoadedHistory] = useState(false);
@@ -137,6 +138,31 @@ export function ImageChatContainer() {
         }
     };
 
+    const handleRandomPrompt = async () => {
+        setIsGeneratingPrompt(true);
+        try {
+            const res = await fetch("/api/prompt/random", {
+                method: "POST",
+            });
+
+            if (!res.ok) {
+                const txt = await res.text().catch(() => "");
+                throw new Error(txt || "Failed to generate random prompt");
+            }
+
+            const data = await res.json();
+            if (data.prompt) {
+                setInput(data.prompt);
+                textareaRef.current?.focus();
+            }
+        } catch (err) {
+            console.error("Random prompt error:", err);
+            alert("Lỗi khi tạo prompt ngẫu nhiên. Vui lòng thử lại.");
+        } finally {
+            setIsGeneratingPrompt(false);
+        }
+    };
+
     const clearHistory = () => {
         setIsConfirmOpen(true);
     };
@@ -209,7 +235,15 @@ export function ImageChatContainer() {
                 </div>
             </div>
 
-            <InputArea input={input} setInput={setInput} onSend={handleSendMessage} isLoading={isLoading} textareaRef={textareaRef} />
+            <InputArea
+                input={input}
+                setInput={setInput}
+                onSend={handleSendMessage}
+                isLoading={isLoading}
+                textareaRef={textareaRef}
+                isGeneratingPrompt={isGeneratingPrompt}
+                onRandomPrompt={handleRandomPrompt}
+            />
 
             <NativeConfirm
                 open={isConfirmOpen}
