@@ -75,6 +75,17 @@ export function ImageChatContainer() {
         setMessages((prev) => [...prev, userMessage]);
         const promptText = input;
         setInput("");
+
+        // Tạo processing message TRƯỚC KHI gọi API
+        const tempId = (Date.now() + 1).toString();
+        const processingMessage: Message = {
+            id: tempId,
+            text: "Đang tạo ảnh — quá trình có thể mất khoảng 10 - 20 giây. Vui lòng đợi",
+            sender: "bot",
+            timestamp: new Date(),
+            processing: true,
+        };
+        setMessages((prev) => [...prev, processingMessage]);
         setIsLoading(true);
 
         try {
@@ -96,7 +107,7 @@ export function ImageChatContainer() {
 
             // Create bot message with generated image
             const botMessage: Message = {
-                id: (Date.now() + 1).toString(),
+                id: (Date.now() + 2).toString(),
                 text: data.revisedPrompt || promptText,
                 sender: "bot",
                 timestamp: new Date(),
@@ -108,17 +119,19 @@ export function ImageChatContainer() {
                     : undefined,
             };
 
-            setMessages((prev) => [...prev, botMessage]);
+            // Thay thế processing message bằng kết quả
+            setMessages((prev) => prev.map((m) => (m.id === tempId ? botMessage : m)));
         } catch (error: any) {
             console.error("Image generation error:", error);
-            // Add error message to chat
+            // Update processing message to error
             const errorMessage: Message = {
-                id: (Date.now() + 1).toString(),
+                id: tempId,
                 text: `Lỗi: ${error.message || "Không thể tạo ảnh. Vui lòng thử lại."}`,
                 sender: "bot",
                 timestamp: new Date(),
+                processing: false,
             };
-            setMessages((prev) => [...prev, errorMessage]);
+            setMessages((prev) => prev.map((m) => (m.id === tempId ? errorMessage : m)));
         } finally {
             setIsLoading(false);
         }
