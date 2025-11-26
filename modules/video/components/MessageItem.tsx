@@ -62,7 +62,7 @@ export function MessageItem({ message }: MessageItemProps) {
                             variant="secondary"
                             size="sm"
                             className="w-full gap-2 bg-background/80 hover:bg-background shadow-sm transition-all"
-                            onClick={() => message.media && downloadMedia(message.media.src)}
+                            onClick={() => message.media && downloadMedia(message.media.src, `video-${Date.now()}.mp4`)}
                         >
                             <Download className="h-4 w-4" />
                             Tải video xuống
@@ -80,7 +80,7 @@ export function MessageItem({ message }: MessageItemProps) {
                             variant="secondary"
                             size="sm"
                             className="w-full gap-2 bg-background/80 hover:bg-background shadow-sm transition-all"
-                            onClick={() => message.media && downloadMedia(message.media.src)}
+                            onClick={() => message.media && downloadMedia(message.media.src, `image-${Date.now()}.png`)}
                         >
                             <Download className="h-4 w-4" />
                             Tải ảnh xuống
