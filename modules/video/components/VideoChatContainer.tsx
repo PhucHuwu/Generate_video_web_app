@@ -274,7 +274,7 @@ export function VideoChatContainer() {
                     }
 
                     if (statusData?.state === "fail" || statusData?.state === "failed") {
-                        const failMsg = statusData?.failMsg || "Quá trình tạo video thất bại.";
+                        const failMsg = statusData?.failMsg || "Quá trình tạo video thất bại. Vui lòng thử lại.";
                         updateLocalMessage(`Lỗi: ${failMsg}`, false);
                         setIsProcessing(false);
 
