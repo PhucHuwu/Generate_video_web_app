@@ -120,7 +120,7 @@ export function InputArea({
                             value={input}
                             onChange={(e) => setInput(e.target.value)}
                             onKeyDown={handleKeyDown}
-                            placeholder="Mô tả video bạn muốn tạo..."
+                            placeholder="Mô tả video/ảnh bạn muốn tạo..."
                             className="flex min-h-[48px] w-full rounded-xl border border-input bg-background px-4 py-3 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 resize-none"
                             rows={1}
                             disabled={isLoading}
